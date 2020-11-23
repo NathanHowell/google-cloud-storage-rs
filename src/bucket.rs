@@ -9,7 +9,7 @@ use crate::google::storage::v1::{
 use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
-use crate::storage::v1::Bucket;
+use crate::storage::v1::{Bucket, PatchBucketRequest};
 use crate::{Client, Result};
 use futures::Stream;
 use reqwest::{Method, Url};
@@ -307,6 +307,15 @@ impl Client {
         let request = request.into();
 
         self.invoke(&request).await
+    }
+
+    #[doc = " Updates a bucket. Changes to the bucket will be readable immediately after"]
+    #[doc = " writing, but configuration changes may take time to propagate."]
+    pub async fn patch_bucket(
+        &mut self,
+        _request: impl Into<PatchBucketRequest>,
+    ) -> Result<Bucket> {
+        unimplemented!()
     }
 
     #[doc = " Updates a bucket. Equivalent to PatchBucket, but always replaces all"]

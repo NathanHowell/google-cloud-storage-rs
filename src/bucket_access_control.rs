@@ -6,6 +6,7 @@ use crate::google::storage::v1::{
 };
 use crate::query::Query;
 use crate::request::Request;
+use crate::storage::v1::PatchBucketAccessControlRequest;
 use crate::{Client, Result};
 use reqwest::Method;
 use std::fmt::Debug;
@@ -154,5 +155,13 @@ impl Client {
         let request = request.into();
 
         self.invoke(&request).await
+    }
+
+    #[doc = " Updates an ACL entry on the specified bucket."]
+    pub async fn patch_bucket_access_control(
+        &mut self,
+        _request: impl Into<PatchBucketAccessControlRequest>,
+    ) -> Result<BucketAccessControl> {
+        unimplemented!()
     }
 }

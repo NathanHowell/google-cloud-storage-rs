@@ -6,6 +6,7 @@ use crate::google::storage::v1::{
 };
 use crate::query::Query;
 use crate::request::Request;
+use crate::storage::v1::PatchObjectAccessControlRequest;
 use crate::{Client, Result};
 use reqwest::{Method, Url};
 use std::fmt::Debug;
@@ -151,6 +152,16 @@ impl Client {
         let request = request.into();
 
         self.invoke(&request).await
+    }
+
+    #[doc = " Patches an ACL entry on the specified object.  Patch is similar to update,"]
+    #[doc = " but only applies or appends the specified fields in the"]
+    #[doc = " object_access_control object.  Other fields are unaffected."]
+    pub async fn patch_object_access_control(
+        &mut self,
+        _request: impl Into<PatchObjectAccessControlRequest>,
+    ) -> Result<ObjectAccessControl> {
+        unimplemented!()
     }
 
     #[doc = " Updates an ACL entry on the specified object."]

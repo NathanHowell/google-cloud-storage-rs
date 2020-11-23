@@ -12,7 +12,8 @@ use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::{
-    Object, QueryWriteStatusRequest, QueryWriteStatusResponse, StartResumableWriteResponse,
+    Object, PatchObjectRequest, QueryWriteStatusRequest, QueryWriteStatusResponse,
+    StartResumableWriteResponse,
 };
 use crate::Client;
 use crate::Result;
@@ -592,6 +593,14 @@ impl Client {
                 #[cfg(feature = "backtrace")]
                 backtrace: std::backtrace::Backtrace::capture(),
             }))
+    }
+
+    #[doc = " Updates an object's metadata."]
+    pub async fn patch_object(
+        &mut self,
+        _request: impl Into<PatchObjectRequest>,
+    ) -> Result<Object> {
+        unimplemented!()
     }
 
     #[doc = " Updates an object's metadata. Equivalent to PatchObject, but always"]

@@ -6,6 +6,7 @@ use crate::google::storage::v1::{
 };
 use crate::query::Query;
 use crate::request::Request;
+use crate::storage::v1::PatchDefaultObjectAccessControlRequest;
 use crate::{Client, Result};
 use reqwest::Method;
 use std::fmt::Debug;
@@ -142,6 +143,14 @@ impl Client {
         let request = request.into();
 
         self.invoke(&request).await
+    }
+
+    #[doc = " Updates a default object ACL entry on the specified bucket."]
+    pub async fn patch_default_object_access_control(
+        &mut self,
+        _request: impl Into<PatchDefaultObjectAccessControlRequest>,
+    ) -> Result<ObjectAccessControl> {
+        unimplemented!()
     }
 
     #[doc = " Updates a default object ACL entry on the specified bucket. Equivalent to"]
