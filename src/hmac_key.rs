@@ -6,10 +6,11 @@ use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
 use crate::{Client, Result};
-use futures::Stream;
+use futures::{Stream, TryStreamExt};
 use reqwest::Method;
 use std::fmt::Debug;
 use std::pin::Pin;
+use tracing::Instrument;
 use url::Url;
 
 fn hmac_keys_url(base_url: &Url, project_id: &str) -> Result<Url> {
@@ -170,6 +171,19 @@ impl Client {
         request: impl Into<ListHmacKeysRequest> + Debug,
     ) -> Pin<Box<dyn Stream<Item = Result<HmacKeyMetadata>> + 'a>> {
         self.paginate(request.into())
+    }
+
+    #[doc = " Lists HMAC keys under a given project with the additional filters provided."]
+    #[tracing::instrument]
+    pub async fn list_hmac_keys_vec(
+        &self,
+        request: impl Into<ListHmacKeysRequest> + Debug,
+    ) -> Result<Vec<HmacKeyMetadata>> {
+        self.list_hmac_keys_stream(request.into())
+            .await
+            .try_collect()
+            .instrument(tracing::trace_span!("try_collect"))
+            .await
     }
 
     #[doc = " Gets an existing HMAC key metadata for the given id."]

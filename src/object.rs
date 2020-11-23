@@ -24,6 +24,7 @@ use reqwest::{Method, Url};
 use std::convert::TryFrom;
 use std::fmt::Debug;
 use std::pin::Pin;
+use tracing::Instrument;
 
 impl Query for CommonObjectRequestParams {
     fn request_query(&self) -> Vec<(&'static str, String)> {
@@ -552,6 +553,19 @@ impl Client {
         request: impl Into<ListObjectsRequest> + Debug + 'a,
     ) -> Pin<Box<dyn Stream<Item = Result<Object>> + 'a>> {
         self.paginate(request.into())
+    }
+
+    #[doc = " Retrieves a list of objects matching the criteria."]
+    #[tracing::instrument]
+    pub async fn list_objects_vec(
+        &self,
+        request: impl Into<ListObjectsRequest> + Debug,
+    ) -> Result<Vec<Object>> {
+        self.list_objects_stream(request)
+            .await
+            .try_collect()
+            .instrument(tracing::trace_span!("try_collect"))
+            .await
     }
 
     #[doc = " Retrieves an object's metadata."]

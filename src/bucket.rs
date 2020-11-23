@@ -11,10 +11,11 @@ use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::{Bucket, PatchBucketRequest};
 use crate::{Client, Result};
-use futures::Stream;
+use futures::{Stream, TryStreamExt};
 use reqwest::{Method, Url};
 use std::fmt::Debug;
 use std::pin::Pin;
+use tracing::Instrument;
 
 impl From<&str> for Bucket {
     fn from(value: &str) -> Self {
@@ -296,6 +297,19 @@ impl Client {
         request: impl Into<ListBucketsRequest> + Debug,
     ) -> Pin<Box<dyn Stream<Item = Result<Bucket>> + 'a>> {
         self.paginate(request.into())
+    }
+
+    #[doc = " Retrieves a list of buckets for a given project."]
+    #[tracing::instrument]
+    pub async fn list_buckets_vec(
+        &self,
+        request: impl Into<ListBucketsRequest> + Debug,
+    ) -> Result<Vec<Bucket>> {
+        self.list_buckets_stream(request)
+            .await
+            .try_collect()
+            .instrument(tracing::trace_span!("try_collect"))
+            .await
     }
 
     #[doc = " Returns metadata for the specified bucket."]
