@@ -2,11 +2,14 @@ use crate::google::storage::v1::{
     CreateHmacKeyRequest, CreateHmacKeyResponse, DeleteHmacKeyRequest, GetHmacKeyRequest,
     HmacKeyMetadata, ListHmacKeysRequest, ListHmacKeysResponse, UpdateHmacKeyRequest,
 };
+use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
 use crate::{Client, Result};
+use futures::Stream;
 use reqwest::Method;
 use std::fmt::Debug;
+use std::pin::Pin;
 use url::Url;
 
 fn hmac_keys_url(base_url: &Url, project_id: &str) -> Result<Url> {
@@ -67,6 +70,25 @@ impl Request for ListHmacKeysRequest {
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
         hmac_keys_url(base_url, &self.project_id)
+    }
+}
+
+impl<'a> Paginate<'a> for ListHmacKeysRequest {
+    type Item = HmacKeyMetadata;
+
+    fn extract_items(response: ListHmacKeysResponse) -> Vec<Self::Item> {
+        response.items
+    }
+
+    fn next_request(response: &ListHmacKeysResponse) -> Option<Self> {
+        if response.next_page_token.is_empty() {
+            None
+        } else {
+            Some(ListHmacKeysRequest {
+                page_token: response.next_page_token.clone(),
+                ..Default::default()
+            })
+        }
     }
 }
 
@@ -139,6 +161,15 @@ impl Client {
         let request = request.into();
 
         self.invoke(&request).await
+    }
+
+    #[doc = " Lists HMAC keys under a given project with the additional filters provided."]
+    #[tracing::instrument]
+    pub async fn list_hmac_keys_stream<'a>(
+        &'a self,
+        request: impl Into<ListHmacKeysRequest> + Debug,
+    ) -> Pin<Box<dyn Stream<Item = Result<HmacKeyMetadata>> + 'a>> {
+        self.paginate(request.into())
     }
 
     #[doc = " Gets an existing HMAC key metadata for the given id."]

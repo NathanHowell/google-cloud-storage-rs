@@ -6,12 +6,15 @@ use crate::google::storage::v1::{
     DeleteBucketRequest, GetBucketRequest, InsertBucketRequest, ListBucketsRequest,
     ListBucketsResponse, UpdateBucketRequest,
 };
+use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::Bucket;
 use crate::{Client, Result};
+use futures::Stream;
 use reqwest::{Method, Url};
 use std::fmt::Debug;
+use std::pin::Pin;
 
 impl From<&str> for Bucket {
     fn from(value: &str) -> Self {
@@ -61,6 +64,25 @@ impl Request for ListBucketsRequest {
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
         Ok(base_url.join("b")?)
+    }
+}
+
+impl<'a> Paginate<'a> for ListBucketsRequest {
+    type Item = Bucket;
+
+    fn extract_items(response: ListBucketsResponse) -> Vec<Self::Item> {
+        response.items
+    }
+
+    fn next_request(response: &ListBucketsResponse) -> Option<Self> {
+        if response.next_page_token.is_empty() {
+            None
+        } else {
+            Some(ListBucketsRequest {
+                page_token: response.next_page_token.clone(),
+                ..Default::default()
+            })
+        }
     }
 }
 
@@ -265,6 +287,15 @@ impl Client {
         let request = request.into();
 
         self.invoke(&request).await
+    }
+
+    #[doc = " Retrieves a list of buckets for a given project."]
+    #[tracing::instrument]
+    pub async fn list_buckets_stream<'a>(
+        &'a self,
+        request: impl Into<ListBucketsRequest> + Debug,
+    ) -> Pin<Box<dyn Stream<Item = Result<Bucket>> + 'a>> {
+        self.paginate(request.into())
     }
 
     #[doc = " Returns metadata for the specified bucket."]

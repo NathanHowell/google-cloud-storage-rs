@@ -1,7 +1,7 @@
 use crate::client::{bucket_url, object_url, percent_encode};
 use crate::google::storage::v1::common_enums::{PredefinedObjectAcl, Projection};
 use crate::google::storage::v1::compose_object_request::SourceObjects;
-use crate::google::storage::v1::insert_object_request::{Data, FirstMessage};
+use crate::google::storage::v1::insert_object_request::FirstMessage;
 use crate::google::storage::v1::{
     CommonObjectRequestParams, ComposeObjectRequest, CopyObjectRequest, DeleteObjectRequest,
     GetObjectMediaRequest, GetObjectRequest, InsertObjectRequest, ListObjectsRequest,
@@ -475,6 +475,12 @@ impl Request for ListObjectsRequest {
 }
 
 impl<'a> Paginate<'a> for ListObjectsRequest {
+    type Item = Object;
+
+    fn extract_items(response: ListObjectsResponse) -> Vec<Self::Item> {
+        response.items
+    }
+
     fn next_request(response: &ListObjectsResponse) -> Option<Self> {
         if response.next_page_token.is_empty() {
             None
@@ -544,13 +550,7 @@ impl Client {
         &'a self,
         request: impl Into<ListObjectsRequest> + Debug + 'a,
     ) -> Pin<Box<dyn Stream<Item = Result<Object>> + 'a>> {
-        Box::pin(
-            request
-                .into()
-                .paginate(self)
-                .map_ok(|e| futures::stream::iter(e.items.into_iter().map(Ok)))
-                .try_flatten(),
-        )
+        self.paginate(request.into())
     }
 
     #[doc = " Retrieves an object's metadata."]
