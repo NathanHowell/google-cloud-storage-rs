@@ -1,0 +1,22 @@
+{
+  "kind": "storage#bucket",
+  "selfLink": "https://www.googleapis.com/storage/v1/b/new-bucket",
+  "id": "new-bucket",
+  "name": "new-bucket",
+  "projectNumber": "115258717311",
+  "metageneration": "1",
+  "location": "US",
+  "storageClass": "STANDARD",
+  "etag": "CAE=",
+  "timeCreated": "2020-11-19T16:47:28.705Z",
+  "updated": "2020-11-19T16:47:28.705Z",
+  "iamConfiguration": {
+    "bucketPolicyOnly": {
+      "enabled": false
+    },
+    "uniformBucketLevelAccess": {
+      "enabled": false
+    }
+  },
+  "locationType": "multi-region"
+}

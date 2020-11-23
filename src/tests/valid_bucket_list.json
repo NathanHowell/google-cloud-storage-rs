@@ -1,0 +1,44 @@
+{
+  "kind": "storage#buckets",
+  "items": [
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/new-bucket",
+      "id": "new-bucket",
+      "name": "new-bucket",
+      "projectNumber": "115258717311",
+      "metageneration": "1",
+      "location": "US",
+      "storageClass": "STANDARD",
+      "etag": "CAE=",
+      "timeCreated": "2020-11-19T16:47:28.705Z",
+      "updated": "2020-11-19T16:47:28.705Z",
+      "iamConfiguration": {
+        "bucketPolicyOnly": {
+          "enabled": false
+        },
+        "uniformBucketLevelAccess": {
+          "enabled": false
+        }
+      },
+      "locationType": "multi-region"
+    },
+    {
+      "kind": "storage#bucket",
+      "selfLink": "https://www.googleapis.com/storage/v1/b/old-website",
+      "id": "old-website",
+      "name": "old-website",
+      "projectNumber": "115258717311",
+      "metageneration": "4",
+      "location": "US",
+      "storageClass": "MULTI_REGIONAL",
+      "etag": "CAQ=",
+      "timeCreated": "2017-07-18T06:02:29.767Z",
+      "updated": "2017-07-18T06:36:38.425Z",
+      "website": {
+        "mainPageSuffix": "index.html"
+      },
+      "locationType": "multi-region"
+    }
+  ]
+}

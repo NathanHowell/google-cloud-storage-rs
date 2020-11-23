@@ -1,0 +1,660 @@
+use crate::client::{bucket_url, object_url, percent_encode};
+use crate::google::storage::v1::common_enums::{PredefinedObjectAcl, Projection};
+use crate::google::storage::v1::compose_object_request::SourceObjects;
+use crate::google::storage::v1::insert_object_request::{Data, FirstMessage};
+use crate::google::storage::v1::{
+    CommonObjectRequestParams, ComposeObjectRequest, CopyObjectRequest, DeleteObjectRequest,
+    GetObjectMediaRequest, GetObjectRequest, InsertObjectRequest, ListObjectsRequest,
+    RewriteObjectRequest, RewriteResponse, StartResumableWriteRequest, UpdateObjectRequest,
+};
+use crate::query::Query;
+use crate::request::Request;
+use crate::storage::v1::{
+    Object, QueryWriteStatusRequest, QueryWriteStatusResponse, StartResumableWriteResponse,
+};
+use crate::Client;
+use crate::Result;
+use bytes::Bytes;
+use futures::{Stream, TryStreamExt};
+use reqwest::header::{HeaderMap, HeaderValue};
+use reqwest::{Method, Url};
+use std::convert::TryFrom;
+use std::fmt::Debug;
+
+impl Query for CommonObjectRequestParams {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        vec![
+            (
+                "x-goog-encryption-algorithm",
+                self.encryption_algorithm.clone(),
+            ),
+            (
+                "x-goog-encryption-key",
+                base64::encode(self.encryption_key.as_bytes()),
+            ),
+            (
+                "x-goog-encryption-key-sha256",
+                base64::encode(self.encryption_key_sha256.as_bytes()),
+            ),
+        ]
+    }
+}
+
+impl Query for InsertObjectRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        let insert_object_spec = match self.first_message.as_ref().unwrap() {
+            FirstMessage::UploadId(_) => panic!(),
+            FirstMessage::InsertObjectSpec(spec) => spec,
+        };
+
+        let resource = insert_object_spec.resource.as_ref().unwrap();
+
+        let mut query = self.common_request_params.request_query();
+        query.extend(self.common_object_request_params.request_query());
+        query.push(("uploadType", "media".to_string()));
+        query.push(("name", percent_encode(&resource.name)));
+        query
+    }
+}
+
+impl Request for InsertObjectRequest {
+    const REQUEST_METHOD: Method = Method::POST;
+
+    type Response = Object;
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        let insert_object_spec = match self.first_message.as_ref().unwrap() {
+            FirstMessage::UploadId(_) => panic!(),
+            FirstMessage::InsertObjectSpec(spec) => spec,
+        };
+
+        let resource = insert_object_spec.resource.as_ref().unwrap();
+        let base_url = base_url.join("/upload/storage/v1/")?;
+
+        Ok(bucket_url(&base_url, &resource.bucket)?.join("o")?)
+    }
+
+    fn request_headers(&self) -> HeaderMap<HeaderValue> {
+        unimplemented!()
+    }
+}
+
+impl Query for GetObjectRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.request_query();
+        query.extend(self.common_object_request_params.request_query());
+        query.extend(self.common_object_request_params.request_query());
+        query.extend(Projection::from_i32(self.projection).request_query());
+        unimplemented!()
+    }
+}
+
+impl Request for GetObjectRequest {
+    const REQUEST_METHOD: Method = Method::GET;
+
+    type Response = Object;
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        object_url(base_url, self.bucket.as_str(), self.object.as_str())
+    }
+}
+
+impl TryFrom<String> for GetObjectRequest {
+    type Error = url::ParseError;
+
+    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
+        let url = Url::parse(&value)?;
+
+        Ok(GetObjectRequest {
+            bucket: url.host_str().unwrap_or_default().to_string(),
+            object: url.path().to_string(),
+            ..Default::default()
+        })
+    }
+}
+
+impl Query for ComposeObjectRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.request_query();
+
+        if let Some(if_metageneration_match) = self.if_metageneration_match {
+            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
+        }
+
+        if let Some(if_generation_match) = self.if_generation_match {
+            query.push(("ifGenerationMatch", if_generation_match.to_string()));
+        }
+
+        query.extend(
+            PredefinedObjectAcl::from_i32(self.destination_predefined_acl)
+                .request_query()
+                .into_iter()
+                .map(|(_, v)| ("destinationPredefinedAcl", v)),
+        );
+
+        if !self.kms_key_name.is_empty() {
+            query.push(("kmsKeyName", self.kms_key_name.clone()));
+        }
+
+        query
+    }
+}
+
+impl Request for ComposeObjectRequest {
+    const REQUEST_METHOD: Method = Method::POST;
+
+    type Response = Object;
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        object_url(
+            base_url,
+            self.destination_bucket.as_str(),
+            self.destination_object.as_str(),
+        )
+    }
+}
+
+impl Query for CopyObjectRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.request_query();
+        query.extend(self.common_object_request_params.request_query());
+
+        if !self.destination_kms_key_name.is_empty() {
+            query.push((
+                "destinationKmsKeyName",
+                self.destination_kms_key_name.clone(),
+            ));
+        }
+
+        query.extend(
+            PredefinedObjectAcl::from_i32(self.destination_predefined_acl)
+                .request_query()
+                .into_iter()
+                .map(|(_, v)| ("destinationPredefinedAcl", v)),
+        );
+
+        if let Some(if_generation_match) = self.if_generation_match {
+            query.push(("ifGenerationMatch", if_generation_match.to_string()));
+        }
+
+        if let Some(if_generation_not_match) = self.if_generation_not_match {
+            query.push(("ifGenerationNotMatch", if_generation_not_match.to_string()));
+        }
+
+        if let Some(if_metageneration_match) = self.if_metageneration_match {
+            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
+        }
+
+        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
+            query.push((
+                "ifMetagenerationNotMatch",
+                if_metageneration_not_match.to_string(),
+            ));
+        }
+
+        if let Some(if_source_generation_match) = self.if_source_generation_match {
+            query.push((
+                "ifSourceGenerationMatch",
+                if_source_generation_match.to_string(),
+            ));
+        }
+
+        if let Some(if_source_generation_not_match) = self.if_source_generation_not_match {
+            query.push((
+                "ifSourceGenerationNotMatch",
+                if_source_generation_not_match.to_string(),
+            ));
+        }
+
+        if let Some(if_source_metageneration_match) = self.if_source_metageneration_match {
+            query.push((
+                "ifSourceMetagenerationMatch",
+                if_source_metageneration_match.to_string(),
+            ));
+        }
+
+        if let Some(if_source_metageneration_not_match) = self.if_source_metageneration_not_match {
+            query.push((
+                "ifSourceMetagenerationNotMatch",
+                if_source_metageneration_not_match.to_string(),
+            ));
+        }
+
+        query.extend(Projection::from_i32(self.projection).request_query());
+
+        if self.source_generation != 0 {
+            query.push(("sourceGeneration", self.source_generation.to_string()));
+        }
+
+        query
+    }
+}
+
+impl Request for CopyObjectRequest {
+    const REQUEST_METHOD: Method = Method::POST;
+
+    type Response = Object;
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        let url = object_url(base_url, &self.source_bucket, &self.source_object)?.join("copyTo")?;
+
+        Ok(object_url(
+            &url,
+            &self.destination_bucket,
+            &self.destination_object,
+        )?)
+    }
+}
+
+impl Query for RewriteObjectRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.request_query();
+        query.extend(self.common_object_request_params.request_query());
+
+        if !self.destination_kms_key_name.is_empty() {
+            query.push((
+                "destinationKmsKeyName",
+                self.destination_kms_key_name.clone(),
+            ));
+        }
+
+        query.extend(
+            PredefinedObjectAcl::from_i32(self.destination_predefined_acl)
+                .request_query()
+                .into_iter()
+                .map(|(_, v)| ("destinationPredefinedAcl", v)),
+        );
+
+        if let Some(if_generation_match) = self.if_generation_match {
+            query.push(("ifGenerationMatch", if_generation_match.to_string()));
+        }
+
+        if let Some(if_generation_not_match) = self.if_generation_not_match {
+            query.push(("ifGenerationNotMatch", if_generation_not_match.to_string()));
+        }
+
+        if let Some(if_metageneration_match) = self.if_metageneration_match {
+            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
+        }
+
+        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
+            query.push((
+                "ifMetagenerationNotMatch",
+                if_metageneration_not_match.to_string(),
+            ));
+        }
+
+        if let Some(if_source_generation_match) = self.if_source_generation_match {
+            query.push((
+                "ifSourceGenerationMatch",
+                if_source_generation_match.to_string(),
+            ));
+        }
+
+        if let Some(if_source_generation_not_match) = self.if_source_generation_not_match {
+            query.push((
+                "ifSourceGenerationNotMatch",
+                if_source_generation_not_match.to_string(),
+            ));
+        }
+
+        if let Some(if_source_metageneration_match) = self.if_source_metageneration_match {
+            query.push((
+                "ifSourceMetagenerationMatch",
+                if_source_metageneration_match.to_string(),
+            ));
+        }
+
+        if let Some(if_source_metageneration_not_match) = self.if_source_metageneration_not_match {
+            query.push((
+                "ifSourceMetagenerationNotMatch",
+                if_source_metageneration_not_match.to_string(),
+            ));
+        }
+
+        if self.max_bytes_rewritten_per_call != 0 {
+            query.push((
+                "maxBytesRewrittenPerCall",
+                self.max_bytes_rewritten_per_call.to_string(),
+            ));
+        }
+
+        query.extend(Projection::from_i32(self.projection).request_query());
+
+        if !self.rewrite_token.is_empty() {
+            query.push(("rewriteToken", self.rewrite_token.clone()));
+        }
+
+        if self.source_generation != 0 {
+            query.push(("sourceGeneration", self.source_generation.to_string()));
+        }
+
+        query
+    }
+}
+
+impl Request for RewriteObjectRequest {
+    const REQUEST_METHOD: Method = Method::POST;
+
+    type Response = RewriteResponse;
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        let url =
+            object_url(base_url, &self.source_bucket, &self.source_object)?.join("rewriteTo")?;
+
+        Ok(object_url(
+            &url,
+            &self.destination_bucket,
+            &self.destination_object,
+        )?)
+    }
+}
+
+impl Query for GetObjectMediaRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.request_query();
+        query.extend(self.common_object_request_params.request_query());
+
+        query.push(("alt", "media".to_string()));
+
+        if self.generation != 0 {
+            query.push(("generation", self.generation.to_string()));
+        }
+
+        if let Some(if_generation_match) = self.if_generation_match {
+            query.push(("ifGenerationMatch", if_generation_match.to_string()));
+        }
+
+        if let Some(if_generation_not_match) = self.if_generation_not_match {
+            query.push(("ifGenerationNotMatch", if_generation_not_match.to_string()));
+        }
+
+        if let Some(if_metageneration_match) = self.if_metageneration_match {
+            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
+        }
+
+        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
+            query.push((
+                "ifMetagenerationNotMatch",
+                if_metageneration_not_match.to_string(),
+            ));
+        }
+
+        query
+    }
+}
+
+#[derive(serde::Deserialize)]
+pub struct Void;
+
+impl Request for GetObjectMediaRequest {
+    const REQUEST_METHOD: Method = Method::GET;
+
+    type Response = Void;
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        object_url(base_url, &self.bucket, &self.object)
+    }
+}
+
+impl Query for DeleteObjectRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.request_query();
+        query.extend(self.common_object_request_params.request_query());
+
+        if self.generation != 0 {
+            query.push(("generation", self.generation.to_string()));
+        }
+
+        if let Some(if_generation_match) = self.if_generation_match {
+            query.push(("ifGenerationMatch", if_generation_match.to_string()));
+        }
+
+        if let Some(if_generation_not_match) = self.if_generation_not_match {
+            query.push(("ifGenerationNotMatch", if_generation_not_match.to_string()));
+        }
+
+        if let Some(if_metageneration_match) = self.if_metageneration_match {
+            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
+        }
+
+        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
+            query.push((
+                "ifMetagenerationNotMatch",
+                if_metageneration_not_match.to_string(),
+            ));
+        }
+
+        query
+    }
+}
+
+impl Request for DeleteObjectRequest {
+    const REQUEST_METHOD: Method = Method::DELETE;
+
+    type Response = ();
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        object_url(base_url, &self.bucket, &self.object)
+    }
+}
+
+impl Query for UpdateObjectRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        unimplemented!()
+    }
+}
+
+impl Request for UpdateObjectRequest {
+    const REQUEST_METHOD: Method = Method::PUT;
+
+    type Response = Object;
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        object_url(base_url, &self.bucket, &self.object)
+    }
+}
+
+impl Client {
+    #[doc = " Stores a new object and metadata."]
+    #[doc = ""]
+    #[doc = " An object can be written either in a single message stream or in a"]
+    #[doc = " resumable sequence of message streams. To write using a single stream,"]
+    #[doc = " the client should include in the first message of the stream an"]
+    #[doc = " `InsertObjectSpec` describing the destination bucket, object, and any"]
+    #[doc = " preconditions. Additionally, the final message must set 'finish_write' to"]
+    #[doc = " true, or else it is an error."]
+    #[doc = ""]
+    #[doc = " For a resumable write, the client should instead call"]
+    #[doc = " `StartResumableWrite()` and provide that method an `InsertObjectSpec.`"]
+    #[doc = " They should then attach the returned `upload_id` to the first message of"]
+    #[doc = " each following call to `Insert`. If there is an error or the connection is"]
+    #[doc = " broken during the resumable `Insert()`, the client should check the status"]
+    #[doc = " of the `Insert()` by calling `QueryWriteStatus()` and continue writing from"]
+    #[doc = " the returned `committed_size`. This may be less than the amount of data the"]
+    #[doc = " client previously sent."]
+    #[doc = ""]
+    #[doc = " The service will not view the object as complete until the client has"]
+    #[doc = " sent an `Insert` with `finish_write` set to `true`. Sending any"]
+    #[doc = " requests on a stream after sending a request with `finish_write` set to"]
+    #[doc = " `true` will cause an error. The client **should** check the"]
+    #[doc = " `Object` it receives to determine how much data the service was"]
+    #[doc = " able to commit and whether the service views the object as complete."]
+    #[tracing::instrument]
+    pub async fn insert_object(
+        &self,
+        _request: impl Into<InsertObjectRequest> + Debug,
+    ) -> crate::Result<Object> {
+        unimplemented!()
+    }
+
+    #[tracing::instrument]
+    pub async fn insert_object_streamed<S: Stream<Item = InsertObjectRequest> + Debug>(
+        &self,
+        _request: impl Into<S> + Debug,
+    ) -> crate::Result<Object> {
+        unimplemented!();
+    }
+
+    #[doc = " Retrieves a list of objects matching the criteria."]
+    #[tracing::instrument]
+    pub async fn list_objects<'a>(
+        &'a self,
+        _request: impl Into<ListObjectsRequest> + Debug + 'a,
+    ) -> Result<Box<dyn Stream<Item = Result<Vec<Object>>> + 'a>> {
+        unimplemented!()
+    }
+
+    #[doc = " Retrieves an object's metadata."]
+    #[tracing::instrument]
+    pub async fn get_object(
+        &self,
+        request: impl Into<GetObjectRequest> + Debug,
+    ) -> crate::Result<Object> {
+        let request = request.into();
+
+        self.invoke(&request).await
+    }
+
+    #[doc = " Reads an object's data."]
+    #[tracing::instrument]
+    pub async fn get_object_media_bytes(
+        &self,
+        request: impl Into<GetObjectMediaRequest> + Debug,
+    ) -> Result<Vec<u8>> {
+        let request = request.into();
+
+        Ok(self.get(&request).await?.bytes().await?.to_vec())
+    }
+
+    #[doc = " Reads an object's data."]
+    #[tracing::instrument]
+    pub async fn get_object_media_stream(
+        &self,
+        request: impl Into<GetObjectMediaRequest> + Debug,
+    ) -> crate::Result<impl Stream<Item = crate::Result<Bytes>> + Unpin> {
+        let request = request.into();
+
+        Ok(self
+            .get(&request)
+            .await?
+            .bytes_stream()
+            .map_err(|e| crate::Error::Reqwest {
+                source: e,
+                #[cfg(feature = "backtrace")]
+                backtrace: std::backtrace::Backtrace::capture(),
+            }))
+    }
+
+    #[doc = " Updates an object's metadata. Equivalent to PatchObject, but always"]
+    #[doc = " replaces all mutatable fields of the bucket with new values, reverting all"]
+    #[doc = " unspecified fields to their default values."]
+    #[tracing::instrument]
+    pub async fn update_object(
+        &self,
+        request: impl Into<UpdateObjectRequest> + Debug,
+    ) -> crate::Result<Object> {
+        let request = request.into();
+
+        self.invoke_json(&request, &request.metadata).await
+    }
+
+    #[doc = " Deletes an object and its metadata. Deletions are permanent if versioning"]
+    #[doc = " is not enabled for the bucket, or if the `generation` parameter"]
+    #[doc = " is used."]
+    #[tracing::instrument]
+    pub async fn delete_object(
+        &self,
+        request: impl Into<DeleteObjectRequest> + Debug,
+    ) -> Result<()> {
+        let request = request.into();
+
+        self.invoke(&request).await
+    }
+
+    #[doc = " Concatenates a list of existing objects into a new object in the same"]
+    #[doc = " bucket."]
+    #[tracing::instrument]
+    pub async fn compose_object(
+        &self,
+        request: impl Into<ComposeObjectRequest> + Debug,
+    ) -> crate::Result<Object> {
+        let request = request.into();
+
+        #[derive(Debug, serde::Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ComposeRequest {
+            kind: &'static str,
+            source_objects: Vec<SourceObjects>,
+            destination: Object,
+        }
+
+        let body = ComposeRequest {
+            kind: "storage#composeRequest",
+            source_objects: request.source_objects.clone(),
+            destination: Object {
+                name: request.destination_object.clone(),
+                bucket: request.destination_bucket.clone(),
+                ..request.destination.clone().unwrap_or_default()
+            },
+        };
+
+        self.invoke_json(&request, &body).await
+    }
+
+    #[doc = " Copies a source object to a destination object. Optionally overrides"]
+    #[doc = " metadata."]
+    #[tracing::instrument]
+    pub async fn copy_object(
+        &self,
+        request: impl Into<CopyObjectRequest> + Debug,
+    ) -> crate::Result<Object> {
+        let request = request.into();
+
+        self.invoke_json(&request, &request.destination).await
+    }
+
+    #[doc = " Rewrites a source object to a destination object. Optionally overrides"]
+    #[doc = " metadata."]
+    #[tracing::instrument]
+    pub async fn rewrite_object(
+        &self,
+        request: impl Into<RewriteObjectRequest> + Debug,
+    ) -> crate::Result<RewriteResponse> {
+        let request = request.into();
+
+        self.invoke_json(&request, &request.object).await
+    }
+
+    #[doc = " Starts a resumable write. How long the write operation remains valid, and"]
+    #[doc = " what happens when the write operation becomes invalid, are"]
+    #[doc = " service-dependent."]
+    #[tracing::instrument]
+    pub async fn start_resumable_write(
+        &self,
+        _request: impl Into<StartResumableWriteRequest> + Debug,
+    ) -> Result<StartResumableWriteResponse> {
+        unimplemented!()
+    }
+
+    #[doc = " Determines the `committed_size` for an object that is being written, which"]
+    #[doc = " can then be used as the `write_offset` for the next `Write()` call."]
+    #[doc = ""]
+    #[doc = " If the object does not exist (i.e., the object has been deleted, or the"]
+    #[doc = " first `Write()` has not yet reached the service), this method returns the"]
+    #[doc = " error `NOT_FOUND`."]
+    #[doc = ""]
+    #[doc = " The client **may** call `QueryWriteStatus()` at any time to determine how"]
+    #[doc = " much data has been processed for this object. This is useful if the"]
+    #[doc = " client is buffering data and needs to know which data can be safely"]
+    #[doc = " evicted. For any sequence of `QueryWriteStatus()` calls for a given"]
+    #[doc = " object name, the sequence of returned `committed_size` values will be"]
+    #[doc = " non-decreasing."]
+    #[tracing::instrument]
+    pub async fn query_write_status(
+        &mut self,
+        _request: impl Into<QueryWriteStatusRequest> + Debug,
+    ) -> Result<QueryWriteStatusResponse> {
+        unimplemented!()
+    }
+}

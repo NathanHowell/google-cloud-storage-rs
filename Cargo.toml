@@ -1,0 +1,48 @@
+[package]
+name = "google-cloud-storage"
+version = "0.1.0"
+authors = ["Nathan Howell <nathan.d.howell@gmail.com>"]
+edition = "2018"
+description = ""
+license = "MIT AND Apache-2.0"  # GCS protos are Apache licensed
+repository = "https://github.com/NathanHowell/google-cloud-storage"
+keywords = ["google", "cloud", "storage"]
+categories = ["api-bindings"]
+
+[features]
+backtrace = []
+default = ["default-tls"]
+
+default-tls = ["reqwest/default-tls"]
+rustls-tls = ["reqwest/rustls-tls"]
+trust-dns = ["reqwest/trust-dns"]
+
+[dependencies]
+async-stream = "0.3.0"
+async-trait = "0.1"
+base64 = "0.13"
+bytes = "0.5"
+chrono = { version = "0.4", default-features = false, features = ["serde"] }
+futures = { version = "0.3", default_features = false, features = ["alloc"] }
+gouth = "0.1"
+percent-encoding = "2"
+prost = "0.6"
+prost-types = "0.6"
+reqwest = { version = "0.10", features = ["json", "stream"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "1.0"
+tracing = "0.1"
+tracing-futures = "0.2"
+url = "2"
+
+[build-dependencies]
+prost = "0.6"
+prost-build = "0.6"
+prost-types = "0.6"
+tempfile = "3"
+
+[dev-dependencies]
+dotenv = "0.15"
+tokio = { version = "0.2", features = ["macros", "rt-threaded", "tracing"] }
+tracing-subscriber = "0.2"
