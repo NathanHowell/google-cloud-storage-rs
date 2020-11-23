@@ -10,6 +10,7 @@ pub enum Error {
         #[cfg(feature = "backtrace")]
         backtrace: Backtrace,
     },
+    #[cfg(feature = "gouth")]
     #[error(transparent)]
     Gouth {
         #[from]

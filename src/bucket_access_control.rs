@@ -27,6 +27,10 @@ impl Request for InsertBucketAccessControlRequest {
 
     type Response = BucketAccessControl;
 
+    fn scope(&self) -> &'static str {
+        crate::iam::FULL_CONTROL
+    }
+
     fn request_path(&self, base_url: &Url) -> Result<Url> {
         acl_url(base_url, &self.bucket)
     }
@@ -59,6 +63,10 @@ impl Request for UpdateBucketAccessControlRequest {
 
     type Response = BucketAccessControl;
 
+    fn scope(&self) -> &'static str {
+        crate::iam::FULL_CONTROL
+    }
+
     fn request_path(&self, base_url: &Url) -> Result<Url> {
         Ok(acl_url(base_url, &self.bucket)?.join(&self.entity)?)
     }
@@ -74,6 +82,10 @@ impl Request for DeleteBucketAccessControlRequest {
     const REQUEST_METHOD: Method = Method::DELETE;
 
     type Response = ();
+
+    fn scope(&self) -> &'static str {
+        crate::iam::FULL_CONTROL
+    }
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
         Ok(acl_url(base_url, &self.bucket)?.join(&self.entity)?)

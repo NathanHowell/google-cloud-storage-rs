@@ -1,6 +1,6 @@
+use crate::headers::Headers;
 use crate::request::Request;
 use crate::{GoogleResponse, Result};
-use gouth::Token;
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use reqwest::{Body, RequestBuilder, Response};
 use serde::Serialize;
@@ -29,7 +29,7 @@ pub(crate) fn object_url(base_url: &Url, bucket: &str, object: &str) -> Result<U
 }
 
 pub struct Client {
-    token: Token,
+    headers: Box<dyn Headers>,
 
     client: reqwest::Client,
 
@@ -38,28 +38,19 @@ pub struct Client {
 
 #[derive(Default)]
 pub struct ClientBuilder {
-    token: Option<Token>,
-    scopes: Vec<String>,
+    headers: Option<Box<dyn Headers>>,
     client: Option<reqwest::Client>,
     base_url: Option<Url>,
 }
 
-fn scopes_or_default(scopes: Vec<String>) -> Vec<String> {
-    if scopes.is_empty() {
-        vec!["https://www.googleapis.com/auth/devstorage.full_control".to_string()]
-    } else {
-        scopes
-    }
-}
-
 impl ClientBuilder {
-    pub fn token(mut self, token: impl Into<Token>) -> Self {
-        self.token = Some(token.into());
-        self
+    #[cfg(feature = "gouth")]
+    pub fn token(mut self, token: impl Into<gouth::Token>) -> Self {
+        self.headers(token.into())
     }
 
-    pub fn scopes<T: AsRef<str>>(mut self, scopes: impl Iterator<Item = T>) -> Self {
-        self.scopes = scopes.map(|e| e.as_ref().to_string()).collect();
+    pub fn headers(mut self, headers: impl Into<Box<dyn Headers>>) -> Self {
+        self.headers = Some(headers.into());
         self
     }
 
@@ -74,22 +65,16 @@ impl ClientBuilder {
     }
 
     pub fn build(self) -> Result<Client> {
-        let token = match self.token {
-            Some(token) if self.scopes.is_empty() => token,
-            None => gouth::Builder::new()
-                .scopes(&scopes_or_default(self.scopes))
-                .build()?,
-            _ => panic!(),
-        };
-
         let client = self.client.unwrap_or_default();
+
+        let headers = self.headers.unwrap_or_else(|| Box::new(()));
 
         let base_url = self
             .base_url
             .unwrap_or_else(|| Url::parse("https://www.googleapis.com/storage/v1/").unwrap());
 
         Ok(Client {
-            token,
+            headers,
             client,
             base_url,
         })
@@ -119,13 +104,6 @@ impl Client {
 }
 
 impl Client {
-    fn authorization_headers(&self) -> Result<reqwest::header::HeaderMap> {
-        let token = self.token.header_value()?;
-        let mut result = reqwest::header::HeaderMap::with_capacity(1);
-        result.insert(reqwest::header::AUTHORIZATION, token.parse()?);
-        Ok(result)
-    }
-
     fn request_builder<R: Request>(&self, request: &R) -> Result<RequestBuilder> {
         let path = request.request_path(&self.base_url)?;
 
@@ -134,7 +112,7 @@ impl Client {
         Ok(self
             .client
             .request(R::REQUEST_METHOD, path)
-            .headers(self.authorization_headers()?)
+            .headers(self.headers.headers(request.scope())?)
             .headers(request.request_headers())
             .query(&request.request_query()))
     }

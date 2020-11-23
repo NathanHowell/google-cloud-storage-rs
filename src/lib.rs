@@ -6,6 +6,7 @@ mod client;
 mod default_object_access_control;
 mod error;
 mod google;
+mod headers;
 mod hmac_key;
 mod iam;
 mod notifications;
