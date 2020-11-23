@@ -4,7 +4,7 @@ use async_stream::try_stream;
 use futures::stream::Stream;
 use std::pin::Pin;
 
-trait Paginate<'a>
+pub(crate) trait Paginate<'a>
 where
     Self: Request + Sized + 'a,
     Self::Response: Unpin,

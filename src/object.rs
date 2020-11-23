@@ -5,8 +5,10 @@ use crate::google::storage::v1::insert_object_request::{Data, FirstMessage};
 use crate::google::storage::v1::{
     CommonObjectRequestParams, ComposeObjectRequest, CopyObjectRequest, DeleteObjectRequest,
     GetObjectMediaRequest, GetObjectRequest, InsertObjectRequest, ListObjectsRequest,
-    RewriteObjectRequest, RewriteResponse, StartResumableWriteRequest, UpdateObjectRequest,
+    ListObjectsResponse, RewriteObjectRequest, RewriteResponse, StartResumableWriteRequest,
+    UpdateObjectRequest,
 };
+use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::{
@@ -20,6 +22,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Method, Url};
 use std::convert::TryFrom;
 use std::fmt::Debug;
+use std::pin::Pin;
 
 impl Query for CommonObjectRequestParams {
     fn request_query(&self) -> Vec<(&'static str, String)> {
@@ -455,6 +458,35 @@ impl Request for UpdateObjectRequest {
     }
 }
 
+impl Query for ListObjectsRequest {
+    fn request_query(&self) -> Vec<(&'static str, String)> {
+        unimplemented!()
+    }
+}
+
+impl Request for ListObjectsRequest {
+    const REQUEST_METHOD: Method = Method::GET;
+
+    type Response = ListObjectsResponse;
+
+    fn request_path(&self, base_url: &Url) -> Result<Url> {
+        bucket_url(base_url, &self.bucket)
+    }
+}
+
+impl<'a> Paginate<'a> for ListObjectsRequest {
+    fn next_request(response: &ListObjectsResponse) -> Option<Self> {
+        if response.next_page_token.is_empty() {
+            None
+        } else {
+            Some(ListObjectsRequest {
+                page_token: response.next_page_token.clone(),
+                ..Default::default()
+            })
+        }
+    }
+}
+
 impl Client {
     #[doc = " Stores a new object and metadata."]
     #[doc = ""]
@@ -489,9 +521,10 @@ impl Client {
     }
 
     #[tracing::instrument]
-    pub async fn insert_object_streamed<S: Stream<Item = InsertObjectRequest> + Debug>(
+    pub async fn insert_object_stream<S: Stream<Item = Bytes> + Debug>(
         &self,
-        _request: impl Into<S> + Debug,
+        first_message: FirstMessage,
+        request: impl Into<S> + Debug,
     ) -> crate::Result<Object> {
         unimplemented!();
     }
@@ -499,10 +532,25 @@ impl Client {
     #[doc = " Retrieves a list of objects matching the criteria."]
     #[tracing::instrument]
     pub async fn list_objects<'a>(
-        &'a self,
-        _request: impl Into<ListObjectsRequest> + Debug + 'a,
-    ) -> Result<Box<dyn Stream<Item = Result<Vec<Object>>> + 'a>> {
+        &self,
+        _request: impl Into<ListObjectsRequest> + Debug,
+    ) -> Result<ListObjectsResponse> {
         unimplemented!()
+    }
+
+    #[doc = " Retrieves a list of objects matching the criteria."]
+    #[tracing::instrument]
+    pub async fn list_objects_stream<'a>(
+        &'a self,
+        request: impl Into<ListObjectsRequest> + Debug + 'a,
+    ) -> Pin<Box<dyn Stream<Item = Result<Object>> + 'a>> {
+        Box::pin(
+            request
+                .into()
+                .paginate(self)
+                .map_ok(|e| futures::stream::iter(e.items.into_iter().map(Ok)))
+                .try_flatten(),
+        )
     }
 
     #[doc = " Retrieves an object's metadata."]

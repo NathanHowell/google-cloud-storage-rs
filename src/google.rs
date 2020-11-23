@@ -4,15 +4,15 @@ pub mod iam {
     }
 }
 
-pub mod api {
+mod api {
     include!(concat!(env!("OUT_DIR"), "/google.api.rs"));
 }
 
-pub mod protobuf {
+mod protobuf {
     include!(concat!(env!("OUT_DIR"), "/google.protobuf.rs"));
 }
 
-pub mod r#type {
+mod r#type {
     include!(concat!(env!("OUT_DIR"), "/google.r#type.rs"));
 }
 
