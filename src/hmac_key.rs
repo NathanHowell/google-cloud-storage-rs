@@ -36,7 +36,7 @@ impl Request for CreateHmacKeyRequest {
     type Response = CreateHmacKeyResponse;
 
     fn scope(&self) -> &'static str {
-        crate::iam::FULL_CONTROL
+        crate::request::Scope::FULL_CONTROL
     }
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
@@ -125,7 +125,7 @@ impl Request for UpdateHmacKeyRequest {
     type Response = HmacKeyMetadata;
 
     fn scope(&self) -> &'static str {
-        crate::iam::FULL_CONTROL
+        crate::request::Scope::FULL_CONTROL
     }
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
@@ -145,7 +145,7 @@ impl Request for DeleteHmacKeyRequest {
     type Response = ();
 
     fn scope(&self) -> &'static str {
-        crate::iam::FULL_CONTROL
+        crate::request::Scope::FULL_CONTROL
     }
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {

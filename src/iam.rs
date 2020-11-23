@@ -10,9 +10,6 @@ use reqwest::Method;
 use std::fmt::Debug;
 use url::Url;
 
-pub(crate) const FULL_CONTROL: &'static str =
-    "https://www.googleapis.com/auth/devstorage.full_control";
-
 fn iam_url<'a, R, F>(base_url: &Url, iam_request: Option<&'a R>, resource: F) -> Result<Url>
 where
     F: FnOnce(&'a R) -> &'a str,
@@ -71,7 +68,7 @@ impl Request for SetIamPolicyRequest {
     type Response = Policy;
 
     fn scope(&self) -> &'static str {
-        FULL_CONTROL
+        crate::request::Scope::FULL_CONTROL
     }
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {

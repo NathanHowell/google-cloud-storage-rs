@@ -5,6 +5,19 @@ use reqwest::Method;
 use serde::de::DeserializeOwned;
 use url::Url;
 
+pub(crate) struct Scope;
+
+impl Scope {
+    pub(crate) const READ_ONLY: &'static str =
+        "https://www.googleapis.com/auth/devstorage.read_only";
+
+    pub(crate) const READ_WRITE: &'static str =
+        "https://www.googleapis.com/auth/devstorage.read_write";
+
+    pub(crate) const FULL_CONTROL: &'static str =
+        "https://www.googleapis.com/auth/devstorage.full_control";
+}
+
 pub(crate) trait Request: Query {
     const REQUEST_METHOD: Method;
 
@@ -12,9 +25,9 @@ pub(crate) trait Request: Query {
 
     fn scope(&self) -> &'static str {
         if Self::REQUEST_METHOD == Method::GET {
-            "https://www.googleapis.com/auth/devstorage.read_only"
+            Scope::READ_ONLY
         } else {
-            "https://www.googleapis.com/auth/devstorage.read_write"
+            Scope::READ_WRITE
         }
     }
 

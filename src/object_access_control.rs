@@ -33,7 +33,7 @@ impl Request for InsertObjectAccessControlRequest {
     type Response = ObjectAccessControl;
 
     fn scope(&self) -> &'static str {
-        crate::iam::FULL_CONTROL
+        crate::request::Scope::FULL_CONTROL
     }
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
@@ -97,7 +97,7 @@ impl Request for UpdateObjectAccessControlRequest {
     type Response = ObjectAccessControl;
 
     fn scope(&self) -> &'static str {
-        crate::iam::FULL_CONTROL
+        crate::request::Scope::FULL_CONTROL
     }
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
@@ -123,7 +123,7 @@ impl Request for DeleteObjectAccessControlRequest {
     type Response = ();
 
     fn scope(&self) -> &'static str {
-        crate::iam::FULL_CONTROL
+        crate::request::Scope::FULL_CONTROL
     }
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
