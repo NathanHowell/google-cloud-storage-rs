@@ -9,24 +9,41 @@ use crate::google::storage::v1::{
 use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
-use crate::storage::v1::{Bucket, PatchBucketRequest};
+use crate::storage::v1::{Bucket, Object, PatchBucketRequest};
 use crate::{Client, Result};
 use futures::{Stream, TryStreamExt};
 use reqwest::{Method, Url};
+use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
 use std::pin::Pin;
+use std::str::FromStr;
 use tracing::Instrument;
 
-impl From<&str> for Bucket {
-    fn from(value: &str) -> Self {
-        value.to_string().into()
+impl FromStr for Bucket {
+    type Err = crate::Error;
+
+    fn from_str(value: &str) -> Result<Self> {
+        let object = value.parse::<Object>()?;
+        Ok(Bucket {
+            name: object.bucket,
+            ..Default::default()
+        })
     }
 }
 
-impl From<String> for Bucket {
-    fn from(value: String) -> Self {
+impl TryFrom<Url> for Bucket {
+    type Error = crate::Error;
+
+    fn try_from(value: Url) -> Result<Self> {
+        let object: Object = value.try_into()?;
+        Ok(object.into())
+    }
+}
+
+impl From<Object> for Bucket {
+    fn from(value: Object) -> Self {
         Bucket {
-            name: value,
+            name: value.bucket,
             ..Default::default()
         }
     }
@@ -194,18 +211,23 @@ impl Request for GetBucketRequest {
     }
 }
 
-impl From<&str> for GetBucketRequest {
-    fn from(value: &str) -> Self {
-        value.to_string().into()
+/// Convert gs://bucket/prefix Urls to a GetBucketRequest
+impl TryInto<GetBucketRequest> for Url {
+    type Error = crate::Error;
+
+    fn try_into(self) -> Result<GetBucketRequest> {
+        let bucket: Bucket = self.try_into()?;
+        Ok(bucket.into())
     }
 }
 
-impl From<String> for GetBucketRequest {
-    fn from(value: String) -> Self {
-        GetBucketRequest {
-            bucket: value.to_string(),
-            ..Default::default()
-        }
+impl FromStr for GetBucketRequest {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let url = s.parse::<Url>()?;
+
+        url.try_into()
     }
 }
 

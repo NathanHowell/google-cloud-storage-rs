@@ -1,4 +1,5 @@
 use crate::headers::Headers;
+use crate::join_segment::JoinSegment;
 use crate::request::Request;
 use crate::{GoogleResponse, Result};
 use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
@@ -19,12 +20,14 @@ pub(crate) fn percent_encode(input: &str) -> String {
 }
 
 pub(crate) fn bucket_url(base_url: &Url, bucket: &str) -> Result<Url> {
-    Ok(base_url.join("b/")?.join(&percent_encode(bucket))?)
+    Ok(base_url
+        .join("b/")?
+        .join(&percent_encode(&(bucket.to_string())))?)
 }
 
 pub(crate) fn object_url(base_url: &Url, bucket: &str, object: &str) -> Result<Url> {
     Ok(bucket_url(base_url, bucket)?
-        .join("o/")?
+        .join_segment("o/")?
         .join(&percent_encode(object))?)
 }
 
@@ -45,8 +48,9 @@ pub struct ClientBuilder {
 
 impl ClientBuilder {
     #[cfg(feature = "gouth")]
-    pub fn token(mut self, token: impl Into<gouth::Token>) -> Self {
-        self.headers(token.into())
+    pub fn token(self, token: impl Into<gouth::Token>) -> Self {
+        let token: Box<dyn Headers> = Box::new(token.into());
+        self.headers(token)
     }
 
     pub fn headers(mut self, headers: impl Into<Box<dyn Headers>>) -> Self {
@@ -71,7 +75,7 @@ impl ClientBuilder {
 
         let base_url = self
             .base_url
-            .unwrap_or_else(|| Url::parse("https://www.googleapis.com/storage/v1/").unwrap());
+            .unwrap_or_else(|| Url::parse("https://storage.googleapis.com/storage/v1/").unwrap());
 
         Ok(Client {
             headers,

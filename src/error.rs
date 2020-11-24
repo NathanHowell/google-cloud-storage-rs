@@ -1,5 +1,6 @@
 #[cfg(feature = "backtrace")]
 use std::backtrace::Backtrace;
+use url::Url;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -50,6 +51,12 @@ pub enum Error {
     Url {
         #[from]
         source: url::ParseError,
+        #[cfg(feature = "backtrace")]
+        backtrace: Backtrace,
+    },
+    #[error("Invalid request url {url}")]
+    InvalidRequestUrl {
+        url: Url,
         #[cfg(feature = "backtrace")]
         backtrace: Backtrace,
     },

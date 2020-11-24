@@ -1,5 +1,38 @@
-use crate::google::storage::v1::ListBucketsResponse;
-use crate::storage::v1::Bucket;
+use crate::request::Request;
+use crate::storage::v1::{Bucket, GetBucketRequest, ListBucketsRequest, ListBucketsResponse};
+
+#[test]
+fn valid_list_buckets_url() {
+    let bucket = ListBucketsRequest::default();
+
+    let url = bucket
+        .request_path(
+            &"https://storage.googleapis.com/storage/v1/"
+                .parse()
+                .unwrap(),
+        )
+        .unwrap();
+
+    assert_eq!(url.as_str(), "https://storage.googleapis.com/storage/v1/b");
+}
+
+#[test]
+fn valid_get_bucket_url() {
+    let bucket = "gs://bucket".parse::<GetBucketRequest>().unwrap();
+
+    let url = bucket
+        .request_path(
+            &"https://storage.googleapis.com/storage/v1/"
+                .parse()
+                .unwrap(),
+        )
+        .unwrap();
+
+    assert_eq!(
+        url.as_str(),
+        "https://storage.googleapis.com/storage/v1/b/bucket"
+    );
+}
 
 #[test]
 fn valid_bucket() {

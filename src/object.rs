@@ -3,11 +3,12 @@ use crate::google::storage::v1::common_enums::{PredefinedObjectAcl, Projection};
 use crate::google::storage::v1::compose_object_request::SourceObjects;
 use crate::google::storage::v1::insert_object_request::FirstMessage;
 use crate::google::storage::v1::{
-    CommonObjectRequestParams, ComposeObjectRequest, CopyObjectRequest, DeleteObjectRequest,
-    GetObjectMediaRequest, GetObjectRequest, InsertObjectRequest, ListObjectsRequest,
-    ListObjectsResponse, RewriteObjectRequest, RewriteResponse, StartResumableWriteRequest,
-    UpdateObjectRequest,
+    Bucket, CommonObjectRequestParams, ComposeObjectRequest, CopyObjectRequest,
+    DeleteObjectRequest, GetObjectMediaRequest, GetObjectRequest, InsertObjectRequest,
+    ListObjectsRequest, ListObjectsResponse, RewriteObjectRequest, RewriteResponse,
+    StartResumableWriteRequest, UpdateObjectRequest,
 };
+use crate::join_segment::JoinSegment;
 use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
@@ -21,10 +22,42 @@ use bytes::Bytes;
 use futures::{Stream, TryStreamExt};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Method, Url};
-use std::convert::TryFrom;
+use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
 use std::pin::Pin;
+use std::str::FromStr;
 use tracing::Instrument;
+
+impl FromStr for Object {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let url = s.parse::<Url>()?;
+
+        url.try_into()
+    }
+}
+
+/// Convert gs://bucket/prefix Urls to an Object
+impl TryFrom<Url> for Object {
+    type Error = crate::Error;
+
+    fn try_from(value: Url) -> Result<Self> {
+        if value.scheme() != "gs" {
+            return Err(crate::Error::Other {
+                source: "Unexpected scheme {}".into(),
+                #[cfg(feature = "backtrace")]
+                backtrace: std::backtrace::Backtrace::capture(),
+            });
+        }
+
+        Ok(Object {
+            bucket: value.host_str().unwrap_or_default().to_string(),
+            name: value.path().to_string(),
+            ..Default::default()
+        })
+    }
+}
 
 impl Query for CommonObjectRequestParams {
     fn request_query(&self) -> Vec<(&'static str, String)> {
@@ -76,7 +109,7 @@ impl Request for InsertObjectRequest {
         let resource = insert_object_spec.resource.as_ref().unwrap();
         let base_url = base_url.join("/upload/storage/v1/")?;
 
-        Ok(bucket_url(&base_url, &resource.bucket)?.join("o")?)
+        Ok(bucket_url(&base_url, &resource.bucket)?.join_segment("o")?)
     }
 
     fn request_headers(&self) -> HeaderMap<HeaderValue> {
@@ -87,7 +120,6 @@ impl Request for InsertObjectRequest {
 impl Query for GetObjectRequest {
     fn request_query(&self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
-        query.extend(self.common_object_request_params.request_query());
         query.extend(self.common_object_request_params.request_query());
         query.extend(Projection::from_i32(self.projection).request_query());
         unimplemented!()
@@ -104,17 +136,31 @@ impl Request for GetObjectRequest {
     }
 }
 
-impl TryFrom<String> for GetObjectRequest {
-    type Error = url::ParseError;
-
-    fn try_from(value: String) -> std::result::Result<Self, Self::Error> {
-        let url = Url::parse(&value)?;
-
-        Ok(GetObjectRequest {
-            bucket: url.host_str().unwrap_or_default().to_string(),
-            object: url.path().to_string(),
+impl From<Object> for GetObjectRequest {
+    fn from(value: Object) -> Self {
+        GetObjectRequest {
+            bucket: value.bucket,
+            object: value.name,
             ..Default::default()
-        })
+        }
+    }
+}
+
+/// Convert gs://bucket/prefix Urls to a GetObjectRequest
+impl TryFrom<Url> for GetObjectRequest {
+    type Error = crate::Error;
+
+    fn try_from(value: Url) -> Result<Self> {
+        let object: Object = value.try_into()?;
+        Ok(object.into())
+    }
+}
+
+impl FromStr for GetObjectRequest {
+    type Err = crate::Error;
+
+    fn from_str(value: &str) -> Result<Self> {
+        Ok(value.parse::<Object>()?.into())
     }
 }
 
@@ -241,7 +287,8 @@ impl Request for CopyObjectRequest {
     type Response = Object;
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
-        let url = object_url(base_url, &self.source_bucket, &self.source_object)?.join("copyTo")?;
+        let url = object_url(base_url, &self.source_bucket, &self.source_object)?
+            .join_segment("copyTo")?;
 
         Ok(object_url(
             &url,
@@ -344,8 +391,8 @@ impl Request for RewriteObjectRequest {
     type Response = RewriteResponse;
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
-        let url =
-            object_url(base_url, &self.source_bucket, &self.source_object)?.join("rewriteTo")?;
+        let url = object_url(base_url, &self.source_bucket, &self.source_object)?
+            .join_segment("rewriteTo")?;
 
         Ok(object_url(
             &url,
@@ -402,6 +449,34 @@ impl Request for GetObjectMediaRequest {
     }
 }
 
+impl From<Object> for GetObjectMediaRequest {
+    fn from(value: Object) -> Self {
+        GetObjectMediaRequest {
+            bucket: value.bucket,
+            object: value.name,
+            ..Default::default()
+        }
+    }
+}
+
+/// Convert gs://bucket/prefix Urls to a GetObjectMediaRequest
+impl TryFrom<Url> for GetObjectMediaRequest {
+    type Error = crate::Error;
+
+    fn try_from(value: Url) -> Result<GetObjectMediaRequest> {
+        let object: Object = value.try_into()?;
+        Ok(object.into())
+    }
+}
+
+impl FromStr for GetObjectMediaRequest {
+    type Err = crate::Error;
+
+    fn from_str(value: &str) -> Result<Self> {
+        Ok(value.parse::<Object>()?.into())
+    }
+}
+
 impl Query for DeleteObjectRequest {
     fn request_query(&self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
@@ -444,6 +519,34 @@ impl Request for DeleteObjectRequest {
     }
 }
 
+impl From<Object> for DeleteObjectRequest {
+    fn from(value: Object) -> Self {
+        DeleteObjectRequest {
+            bucket: value.bucket,
+            object: value.name,
+            ..Default::default()
+        }
+    }
+}
+
+/// Convert gs://bucket/prefix Urls to a DeleteObjectRequest
+impl TryFrom<Url> for DeleteObjectRequest {
+    type Error = crate::Error;
+
+    fn try_from(value: Url) -> Result<DeleteObjectRequest> {
+        let object: Object = value.try_into()?;
+        Ok(object.into())
+    }
+}
+
+impl FromStr for DeleteObjectRequest {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        Ok(s.parse::<Object>()?.into())
+    }
+}
+
 impl Query for UpdateObjectRequest {
     fn request_query(&self) -> Vec<(&'static str, String)> {
         unimplemented!()
@@ -462,7 +565,38 @@ impl Request for UpdateObjectRequest {
 
 impl Query for ListObjectsRequest {
     fn request_query(&self) -> Vec<(&'static str, String)> {
-        unimplemented!()
+        let mut query = self.common_request_params.request_query();
+
+        if !self.delimiter.is_empty() {
+            query.push(("delimiter", self.delimiter.clone()));
+        }
+
+        if self.include_trailing_delimiter {
+            query.push((
+                "includeTrailingDelimiter",
+                self.include_trailing_delimiter.to_string(),
+            ));
+        }
+
+        if self.max_results != 0 {
+            query.push(("maxResults", self.max_results.to_string()));
+        }
+
+        if !self.page_token.is_empty() {
+            query.push(("pageToken", self.page_token.clone()));
+        }
+
+        if !self.prefix.is_empty() {
+            query.push(("prefix", self.prefix.clone()));
+        }
+
+        query.extend(Projection::from_i32(self.projection).request_query());
+
+        if self.versions {
+            query.push(("versions", self.versions.to_string()));
+        }
+
+        query
     }
 }
 
@@ -472,7 +606,7 @@ impl Request for ListObjectsRequest {
     type Response = ListObjectsResponse;
 
     fn request_path(&self, base_url: &Url) -> Result<Url> {
-        bucket_url(base_url, &self.bucket)
+        Ok(bucket_url(base_url, &self.bucket)?.join_segment("o")?)
     }
 }
 
@@ -491,6 +625,45 @@ impl<'a> Paginate<'a> for ListObjectsRequest {
                 page_token: response.next_page_token.clone(),
                 ..self
             })
+        }
+    }
+}
+
+impl Into<ListObjectsRequest> for Object {
+    fn into(self) -> ListObjectsRequest {
+        ListObjectsRequest {
+            bucket: self.bucket,
+            prefix: self.name,
+            ..Default::default()
+        }
+    }
+}
+
+/// Convert gs://bucket/prefix Urls to a ListObjectsRequest
+impl TryInto<ListObjectsRequest> for Url {
+    type Error = crate::Error;
+
+    fn try_into(self) -> Result<ListObjectsRequest> {
+        let object: Object = self.try_into()?;
+        Ok(object.into())
+    }
+}
+
+impl FromStr for ListObjectsRequest {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let url = s.parse::<Url>()?;
+
+        url.try_into()
+    }
+}
+
+impl Into<ListObjectsRequest> for Bucket {
+    fn into(self) -> ListObjectsRequest {
+        ListObjectsRequest {
+            bucket: self.name,
+            ..Default::default()
         }
     }
 }
@@ -541,9 +714,11 @@ impl Client {
     #[tracing::instrument]
     pub async fn list_objects<'a>(
         &self,
-        _request: impl Into<ListObjectsRequest> + Debug,
+        request: impl Into<ListObjectsRequest> + Debug,
     ) -> Result<ListObjectsResponse> {
-        unimplemented!()
+        let request = request.into();
+
+        self.invoke(&request).await
     }
 
     #[doc = " Retrieves a list of objects matching the criteria."]

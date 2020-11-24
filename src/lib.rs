@@ -9,6 +9,7 @@ mod google;
 mod headers;
 mod hmac_key;
 mod iam;
+mod join_segment;
 mod notifications;
 mod object;
 mod object_access_control;
