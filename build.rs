@@ -11,7 +11,12 @@ fn main() {
     config.field_attribute("in", r#"#[serde(rename = "in")]"#);
     config.field_attribute("type", r#"#[serde(rename = "type")]"#);
 
-    for field in &["Bucket.project_number", "Bucket.metageneration"] {
+    config.field_attribute(
+        "crc32c",
+        r#"#[serde(with = "crate::serde::optional_crc32c")]"#,
+    );
+
+    for field in &["generation", "metageneration", "project_number", "size"] {
         config.field_attribute(field, r#"#[serde(with = "crate::serde::into_string")]"#);
     }
 

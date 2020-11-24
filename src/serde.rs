@@ -21,6 +21,36 @@ pub(crate) mod into_string {
     }
 }
 
+pub(crate) mod optional_crc32c {
+    use serde::{Deserialize, Serialize, Serializer};
+    use std::convert::TryInto;
+
+    pub fn serialize<S>(value: &Option<u32>, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        value
+            .map(|v| base64::encode(v.to_be_bytes()))
+            .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D>(deserializer: D) -> std::result::Result<Option<u32>, D::Error>
+    where
+        D: ::serde::Deserializer<'de>,
+    {
+        match Option::<String>::deserialize(deserializer)? {
+            Some(v) => Ok(Some(u32::from_be_bytes(
+                base64::decode(v)
+                    .map_err(::serde::de::Error::custom)?
+                    .as_slice()
+                    .try_into()
+                    .map_err(::serde::de::Error::custom)?,
+            ))),
+            None => Ok(None),
+        }
+    }
+}
+
 pub(crate) mod optional_timestamp {
     use chrono::{DateTime, Utc};
     use prost_types::Timestamp;
