@@ -30,22 +30,22 @@ pub mod error {
         error: Errors,
     }
 
-    #[derive(Debug, serde::Deserialize)]
-    #[serde(rename = "camelCase")]
+    #[derive(Debug, Default, serde::Deserialize)]
+    #[serde(default, rename = "camelCase")]
     pub struct Errors {
         code: u16,
         errors: Vec<Error>,
         message: String,
     }
 
-    #[derive(Debug, serde::Deserialize)]
-    #[serde(rename = "camelCase")]
+    #[derive(Debug, Default, serde::Deserialize)]
+    #[serde(default, rename = "camelCase")]
     pub struct Error {
-        domain: Option<String>,
-        location: Option<String>,
-        location_type: Option<String>,
-        message: Option<String>,
-        reason: Option<String>,
+        domain: String,
+        location: String,
+        location_type: String,
+        message: String,
+        reason: String,
     }
 }
 
