@@ -85,13 +85,13 @@ impl<'a> Paginate<'a> for ListHmacKeysRequest {
         response.items
     }
 
-    fn next_request(response: &ListHmacKeysResponse) -> Option<Self> {
+    fn into_request(self, response: &ListHmacKeysResponse) -> Option<Self> {
         if response.next_page_token.is_empty() {
             None
         } else {
             Some(ListHmacKeysRequest {
                 page_token: response.next_page_token.clone(),
-                ..Default::default()
+                ..self
             })
         }
     }

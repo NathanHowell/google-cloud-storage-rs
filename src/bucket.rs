@@ -75,13 +75,13 @@ impl<'a> Paginate<'a> for ListBucketsRequest {
         response.items
     }
 
-    fn next_request(response: &ListBucketsResponse) -> Option<Self> {
+    fn into_request(self, response: &ListBucketsResponse) -> Option<Self> {
         if response.next_page_token.is_empty() {
             None
         } else {
             Some(ListBucketsRequest {
                 page_token: response.next_page_token.clone(),
-                ..Default::default()
+                ..self
             })
         }
     }

@@ -10,15 +10,17 @@ impl Client {
         request: T,
     ) -> Pin<Box<dyn Stream<Item = Result<T::Item>> + 'a>>
     where
-        T: Paginate<'a> + Unpin,
+        T: Clone + Paginate<'a> + Unpin,
         T::Response: Unpin,
     {
+        let initial = request.clone();
+
         let mut next = Some(request);
 
         Box::pin(try_stream! {
             while let Some(request) = next {
                 let response = self.invoke(&request).await?;
-                next = T::next_request(&response);
+                next = T::into_request(initial.clone(), &response);
                 for item in T::extract_items(response) {
                     yield item
                 }
@@ -36,5 +38,5 @@ where
 
     fn extract_items(response: Self::Response) -> Vec<Self::Item>;
 
-    fn next_request(response: &Self::Response) -> Option<Self>;
+    fn into_request(self, response: &Self::Response) -> Option<Self>;
 }
