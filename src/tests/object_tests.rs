@@ -138,3 +138,17 @@ fn valid_objects_list() {
         .collect()
     );
 }
+
+#[test]
+fn valid_crc32c() {
+    let res = serde_json::from_str::<ListObjectsResponse>(include_str!("valid_objects_list.json"))
+        .unwrap();
+    assert_eq!(res.items.len(), 2);
+
+    let object = res.items.get(0).unwrap();
+    assert_eq!(object.name, "BingSiteAuth.xml");
+    assert_eq!(
+        object.crc32c,
+        Some(crc32c::crc32c(include_bytes!("BingSiteAuth.xml")))
+    );
+}
