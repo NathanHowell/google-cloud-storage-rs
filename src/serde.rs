@@ -1,3 +1,8 @@
+#[inline]
+pub(crate) fn is_default<T: Default + PartialEq>(value: &T) -> bool {
+    value == &Default::default()
+}
+
 pub(crate) mod into_string {
     use serde::{Deserialize, Serialize, Serializer};
 

@@ -87,6 +87,15 @@ fn main() {
             messages.extend(message.nested_type.into_iter().map(|x| (path.clone(), x)));
 
             config.type_attribute(&path, r#"#[serde(default)]"#);
+
+            for field in message.field {
+                let path = format!("{}.{}", &path, field.name.unwrap());
+
+                config.field_attribute(
+                    &path,
+                    r#"#[serde(skip_serializing_if = "crate::serde::is_default")]"#,
+                );
+            }
         }
     }
 
