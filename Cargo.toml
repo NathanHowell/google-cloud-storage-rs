@@ -23,6 +23,7 @@ async-trait = "0.1"
 base64 = "0.13"
 bytes = "0.5"
 chrono = { version = "0.4", default-features = false, features = ["serde"] }
+crc32c = "0.5"
 futures = { version = "0.3", default-features = false, features = ["alloc"] }
 gouth = { version = "0.1", optional = true }
 percent-encoding = "2"
