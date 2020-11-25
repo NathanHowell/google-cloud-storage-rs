@@ -4,12 +4,12 @@ mod bucket;
 mod bucket_access_control;
 mod client;
 mod default_object_access_control;
+mod encode;
 mod error;
 mod google;
 mod headers;
 mod hmac_key;
 mod iam;
-mod join_segment;
 mod notifications;
 mod object;
 mod object_access_control;
@@ -17,6 +17,7 @@ mod paginate;
 mod query;
 mod request;
 mod serde;
+mod urls;
 
 #[cfg(test)]
 mod tests;

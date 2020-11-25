@@ -1,4 +1,3 @@
-use crate::client::{bucket_url, object_url, percent_encode};
 use crate::google::storage::v1::common_enums::{PredefinedObjectAcl, Projection};
 use crate::google::storage::v1::compose_object_request::SourceObjects;
 use crate::google::storage::v1::insert_object_request::FirstMessage;
@@ -8,7 +7,6 @@ use crate::google::storage::v1::{
     ListObjectsRequest, ListObjectsResponse, RewriteObjectRequest, RewriteResponse,
     StartResumableWriteRequest, UpdateObjectRequest,
 };
-use crate::join_segment::JoinSegment;
 use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
@@ -16,6 +14,7 @@ use crate::storage::v1::{
     Object, PatchObjectRequest, QueryWriteStatusRequest, QueryWriteStatusResponse,
     StartResumableWriteResponse,
 };
+use crate::urls::Urls;
 use crate::Client;
 use crate::Result;
 use bytes::Bytes;
@@ -90,7 +89,7 @@ impl Query for InsertObjectRequest {
         let mut query = self.common_request_params.request_query();
         query.extend(self.common_object_request_params.request_query());
         query.push(("uploadType", "media".to_string()));
-        query.push(("name", percent_encode(&resource.name)));
+        query.push(("name", resource.name.clone()));
         query
     }
 }
@@ -100,7 +99,7 @@ impl Request for InsertObjectRequest {
 
     type Response = Object;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         let insert_object_spec = match self.first_message.as_ref().unwrap() {
             FirstMessage::UploadId(_) => panic!(),
             FirstMessage::InsertObjectSpec(spec) => spec,
@@ -109,7 +108,7 @@ impl Request for InsertObjectRequest {
         let resource = insert_object_spec.resource.as_ref().unwrap();
         let base_url = base_url.join("/upload/storage/v1/")?;
 
-        Ok(bucket_url(&base_url, &resource.bucket)?.join_segment("o")?)
+        base_url.bucket(&resource.bucket)?.join_segment("o")
     }
 
     fn request_headers(&self) -> HeaderMap<HeaderValue> {
@@ -131,8 +130,8 @@ impl Request for GetObjectRequest {
 
     type Response = Object;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        object_url(base_url, self.bucket.as_str(), self.object.as_str())
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        Ok(base_url.bucket(&self.bucket)?.object(&self.object)?)
     }
 }
 
@@ -196,12 +195,11 @@ impl Request for ComposeObjectRequest {
 
     type Response = Object;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        object_url(
-            base_url,
-            self.destination_bucket.as_str(),
-            self.destination_object.as_str(),
-        )
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url
+            .bucket(&self.destination_bucket)?
+            .object(&self.destination_object)?
+            .join_segment("compose")
     }
 }
 
@@ -286,15 +284,13 @@ impl Request for CopyObjectRequest {
 
     type Response = Object;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        let url = object_url(base_url, &self.source_bucket, &self.source_object)?
-            .join_segment("copyTo")?;
-
-        Ok(object_url(
-            &url,
-            &self.destination_bucket,
-            &self.destination_object,
-        )?)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url
+            .bucket(&self.source_bucket)?
+            .slash_object(&self.source_object)?
+            .join_segment("copyTo")?
+            .bucket(&self.destination_bucket)?
+            .object(&self.destination_object)
     }
 }
 
@@ -390,15 +386,13 @@ impl Request for RewriteObjectRequest {
 
     type Response = RewriteResponse;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        let url = object_url(base_url, &self.source_bucket, &self.source_object)?
-            .join_segment("rewriteTo")?;
-
-        Ok(object_url(
-            &url,
-            &self.destination_bucket,
-            &self.destination_object,
-        )?)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url
+            .bucket(&self.source_bucket)?
+            .slash_object(&self.source_object)?
+            .join_segment("rewriteTo")?
+            .bucket(&self.destination_bucket)?
+            .object(&self.destination_object)
     }
 }
 
@@ -444,8 +438,8 @@ impl Request for GetObjectMediaRequest {
 
     type Response = Void;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        object_url(base_url, &self.bucket, &self.object)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url.bucket(&self.bucket)?.object(&self.object)
     }
 }
 
@@ -514,8 +508,8 @@ impl Request for DeleteObjectRequest {
 
     type Response = ();
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        object_url(base_url, &self.bucket, &self.object)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url.bucket(&self.bucket)?.object(&self.object)
     }
 }
 
@@ -558,8 +552,8 @@ impl Request for UpdateObjectRequest {
 
     type Response = Object;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        object_url(base_url, &self.bucket, &self.object)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url.bucket(&self.bucket)?.object(&self.object)
     }
 }
 
@@ -605,8 +599,8 @@ impl Request for ListObjectsRequest {
 
     type Response = ListObjectsResponse;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        Ok(bucket_url(base_url, &self.bucket)?.join_segment("o")?)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url.bucket(&self.bucket)
     }
 }
 

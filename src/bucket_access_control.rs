@@ -1,4 +1,3 @@
-use crate::client::bucket_url;
 use crate::google::storage::v1::{
     BucketAccessControl, DeleteBucketAccessControlRequest, GetBucketAccessControlRequest,
     InsertBucketAccessControlRequest, ListBucketAccessControlsRequest,
@@ -7,13 +6,14 @@ use crate::google::storage::v1::{
 use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::PatchBucketAccessControlRequest;
+use crate::urls::Urls;
 use crate::{Client, Result};
 use reqwest::Method;
 use std::fmt::Debug;
 use url::Url;
 
-fn acl_url(base_url: &Url, bucket: &str) -> Result<Url> {
-    Ok(bucket_url(base_url, bucket)?.join("acl/")?)
+fn acl_url(base_url: Url, bucket: &str) -> Result<Url> {
+    base_url.bucket(bucket)?.join_segment("acl/")
 }
 
 impl Query for InsertBucketAccessControlRequest {
@@ -31,7 +31,7 @@ impl Request for InsertBucketAccessControlRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         acl_url(base_url, &self.bucket)
     }
 }
@@ -47,7 +47,7 @@ impl Request for GetBucketAccessControlRequest {
 
     type Response = BucketAccessControl;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(acl_url(base_url, &self.bucket)?.join(&self.entity)?)
     }
 }
@@ -67,7 +67,7 @@ impl Request for UpdateBucketAccessControlRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(acl_url(base_url, &self.bucket)?.join(&self.entity)?)
     }
 }
@@ -87,7 +87,7 @@ impl Request for DeleteBucketAccessControlRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(acl_url(base_url, &self.bucket)?.join(&self.entity)?)
     }
 }
@@ -103,7 +103,7 @@ impl Request for ListBucketAccessControlsRequest {
 
     type Response = ListBucketAccessControlsResponse;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         acl_url(base_url, &self.bucket)
     }
 }

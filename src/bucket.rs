@@ -1,4 +1,3 @@
-use crate::client::bucket_url;
 use crate::google::storage::v1::common_enums::{
     PredefinedBucketAcl, PredefinedObjectAcl, Projection,
 };
@@ -10,6 +9,7 @@ use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::{Bucket, Object, PatchBucketRequest};
+use crate::urls::Urls;
 use crate::{Client, Result};
 use futures::{Stream, TryStreamExt};
 use reqwest::{Method, Url};
@@ -80,7 +80,7 @@ impl Request for ListBucketsRequest {
 
     type Response = ListBucketsResponse;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(base_url.join("b")?)
     }
 }
@@ -127,7 +127,7 @@ impl Request for InsertBucketRequest {
 
     type Response = Bucket;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(base_url.join("b")?)
     }
 }
@@ -165,8 +165,8 @@ impl Request for DeleteBucketRequest {
 
     type Response = ();
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        bucket_url(base_url, &self.bucket)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url.bucket(&self.bucket)
     }
 }
 
@@ -177,6 +177,16 @@ impl From<Bucket> for DeleteBucketRequest {
             if_metageneration_match: Some(value.metageneration),
             ..Default::default()
         }
+    }
+}
+
+impl FromStr for DeleteBucketRequest {
+    type Err = crate::Error;
+
+    fn from_str(s: &str) -> Result<Self> {
+        let bucket = s.parse::<Bucket>()?;
+
+        Ok(bucket.into())
     }
 }
 
@@ -206,8 +216,8 @@ impl Request for GetBucketRequest {
 
     type Response = Bucket;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        bucket_url(base_url, &self.bucket)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url.bucket(&self.bucket)
     }
 }
 
@@ -225,9 +235,9 @@ impl FromStr for GetBucketRequest {
     type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self> {
-        let url = s.parse::<Url>()?;
+        let bucket = s.parse::<Bucket>()?;
 
-        url.try_into()
+        Ok(bucket.into())
     }
 }
 
@@ -271,8 +281,8 @@ impl Request for UpdateBucketRequest {
 
     type Response = Bucket;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
-        bucket_url(base_url, &self.bucket)
+    fn request_path(&self, base_url: Url) -> Result<Url> {
+        base_url.bucket(&self.bucket)
     }
 }
 

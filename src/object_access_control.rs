@@ -1,4 +1,3 @@
-use crate::client::object_url;
 use crate::google::storage::v1::{
     DeleteObjectAccessControlRequest, GetObjectAccessControlRequest,
     InsertObjectAccessControlRequest, ListObjectAccessControlsRequest,
@@ -7,12 +6,13 @@ use crate::google::storage::v1::{
 use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::PatchObjectAccessControlRequest;
+use crate::urls::Urls;
 use crate::{Client, Result};
 use reqwest::{Method, Url};
 use std::fmt::Debug;
 
-fn acl_url(base_url: &Url, bucket: &str, object: &str) -> Result<Url> {
-    Ok(object_url(base_url, bucket, object)?.join("acl")?)
+fn acl_url(base_url: Url, bucket: &str, object: &str) -> Result<Url> {
+    base_url.bucket(bucket)?.object(object)?.join_segment("acl")
 }
 
 impl Query for InsertObjectAccessControlRequest {
@@ -36,7 +36,7 @@ impl Request for InsertObjectAccessControlRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         acl_url(base_url, &self.bucket, &self.object)
     }
 }
@@ -52,7 +52,7 @@ impl Request for ListObjectAccessControlsRequest {
 
     type Response = ListObjectAccessControlsResponse;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         acl_url(base_url, &self.bucket, &self.object)
     }
 }
@@ -74,7 +74,7 @@ impl Request for GetObjectAccessControlRequest {
 
     type Response = ObjectAccessControl;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(acl_url(base_url, &self.bucket, &self.object)?.join(&self.entity)?)
     }
 }
@@ -100,7 +100,7 @@ impl Request for UpdateObjectAccessControlRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(acl_url(base_url, &self.bucket, &self.object)?.join(&self.entity)?)
     }
 }
@@ -126,7 +126,7 @@ impl Request for DeleteObjectAccessControlRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(acl_url(base_url, &self.bucket, &self.object)?.join(&self.entity)?)
     }
 }

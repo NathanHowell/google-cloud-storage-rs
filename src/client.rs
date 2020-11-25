@@ -1,35 +1,11 @@
 use crate::headers::Headers;
-use crate::join_segment::JoinSegment;
 use crate::request::Request;
 use crate::{GoogleResponse, Result};
-use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use reqwest::{Body, RequestBuilder, Response};
 use serde::Serialize;
 use std::fmt::{self, Debug, Formatter};
 use tracing::Instrument;
 use url::Url;
-
-const ENCODE_SET: &AsciiSet = &NON_ALPHANUMERIC
-    .remove(b'*')
-    .remove(b'-')
-    .remove(b'.')
-    .remove(b'_');
-
-pub(crate) fn percent_encode(input: &str) -> String {
-    utf8_percent_encode(input, ENCODE_SET).to_string()
-}
-
-pub(crate) fn bucket_url(base_url: &Url, bucket: &str) -> Result<Url> {
-    Ok(base_url
-        .join("b/")?
-        .join(&percent_encode(&(bucket.to_string())))?)
-}
-
-pub(crate) fn object_url(base_url: &Url, bucket: &str, object: &str) -> Result<Url> {
-    Ok(bucket_url(base_url, bucket)?
-        .join_segment("o/")?
-        .join(&percent_encode(object))?)
-}
 
 pub struct Client {
     headers: Box<dyn Headers>,
@@ -109,7 +85,7 @@ impl Client {
 
 impl Client {
     fn request_builder<R: Request>(&self, request: &R) -> Result<RequestBuilder> {
-        let path = request.request_path(&self.base_url)?;
+        let path = request.request_path(self.base_url.clone())?;
 
         tracing::debug!(request_path = %path);
 

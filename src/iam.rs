@@ -1,16 +1,16 @@
-use crate::client::bucket_url;
 use crate::google::iam::v1::{Policy, TestIamPermissionsResponse};
 use crate::google::storage::v1::{
     GetIamPolicyRequest, SetIamPolicyRequest, TestIamPermissionsRequest,
 };
 use crate::query::Query;
 use crate::request::Request;
+use crate::urls::Urls;
 use crate::{Client, Result};
 use reqwest::Method;
 use std::fmt::Debug;
 use url::Url;
 
-fn iam_url<'a, R, F>(base_url: &Url, iam_request: Option<&'a R>, resource: F) -> Result<Url>
+fn iam_url<'a, R, F>(base_url: Url, iam_request: Option<&'a R>, resource: F) -> Result<Url>
 where
     F: FnOnce(&'a R) -> &'a str,
 {
@@ -22,7 +22,7 @@ where
 
     let resource = resource(request);
 
-    Ok(bucket_url(base_url, resource)?.join("iam")?)
+    base_url.bucket(resource)?.join_segment("iam")
 }
 
 impl Query for GetIamPolicyRequest {
@@ -51,7 +51,7 @@ impl Request for GetIamPolicyRequest {
 
     type Response = Policy;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         iam_url(base_url, self.iam_request.as_ref(), |r| &r.resource)
     }
 }
@@ -71,7 +71,7 @@ impl Request for SetIamPolicyRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         iam_url(base_url, self.iam_request.as_ref(), |r| &r.resource)
     }
 }
@@ -102,7 +102,7 @@ impl Request for TestIamPermissionsRequest {
 
     type Response = TestIamPermissionsResponse;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(
             iam_url(base_url, self.iam_request.as_ref(), |r| &r.resource)?
                 .join("testPermissions")?,

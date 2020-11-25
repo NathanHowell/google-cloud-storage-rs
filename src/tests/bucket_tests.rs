@@ -1,13 +1,32 @@
+use crate::google::storage::v1::DeleteBucketRequest;
 use crate::request::Request;
 use crate::storage::v1::{Bucket, GetBucketRequest, ListBucketsRequest, ListBucketsResponse};
 
 #[test]
-fn valid_list_buckets_url() {
+fn delete_bucket_url() {
+    let bucket = "gs://bucket".parse::<DeleteBucketRequest>().unwrap();
+
+    let url = bucket
+        .request_path(
+            "https://storage.googleapis.com/storage/v1/"
+                .parse()
+                .unwrap(),
+        )
+        .unwrap();
+
+    assert_eq!(
+        url.as_str(),
+        "https://storage.googleapis.com/storage/v1/b/bucket"
+    );
+}
+
+#[test]
+fn list_buckets_url() {
     let bucket = ListBucketsRequest::default();
 
     let url = bucket
         .request_path(
-            &"https://storage.googleapis.com/storage/v1/"
+            "https://storage.googleapis.com/storage/v1/"
                 .parse()
                 .unwrap(),
         )
@@ -17,12 +36,12 @@ fn valid_list_buckets_url() {
 }
 
 #[test]
-fn valid_get_bucket_url() {
+fn get_bucket_url() {
     let bucket = "gs://bucket".parse::<GetBucketRequest>().unwrap();
 
     let url = bucket
         .request_path(
-            &"https://storage.googleapis.com/storage/v1/"
+            "https://storage.googleapis.com/storage/v1/"
                 .parse()
                 .unwrap(),
         )

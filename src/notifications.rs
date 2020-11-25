@@ -1,16 +1,18 @@
-use crate::client::bucket_url;
 use crate::google::storage::v1::{
     DeleteNotificationRequest, GetNotificationRequest, InsertNotificationRequest,
     ListNotificationsRequest, ListNotificationsResponse, Notification,
 };
 use crate::query::Query;
 use crate::request::Request;
+use crate::urls::Urls;
 use crate::{Client, Result};
 use reqwest::Method;
 use url::Url;
 
-fn notification_configs_url(base_url: &Url, bucket: &str) -> Result<Url> {
-    Ok(bucket_url(base_url, bucket)?.join("notificationConfigs")?)
+fn notification_configs_url(base_url: Url, bucket: &str) -> Result<Url> {
+    Ok(base_url
+        .bucket(bucket)?
+        .join_segment("notificationConfigs")?)
 }
 
 impl Query for DeleteNotificationRequest {
@@ -24,7 +26,7 @@ impl Request for DeleteNotificationRequest {
 
     type Response = ();
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(notification_configs_url(base_url, &self.bucket)?.join(&self.notification)?)
     }
 }
@@ -40,7 +42,7 @@ impl Request for GetNotificationRequest {
 
     type Response = Notification;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(notification_configs_url(base_url, &self.bucket)?.join(&self.notification)?)
     }
 }
@@ -56,7 +58,7 @@ impl Request for InsertNotificationRequest {
 
     type Response = Notification;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         notification_configs_url(base_url, &self.bucket)
     }
 }
@@ -72,7 +74,7 @@ impl Request for ListNotificationsRequest {
 
     type Response = ListNotificationsResponse;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         notification_configs_url(base_url, &self.bucket)
     }
 }

@@ -1,15 +1,15 @@
-use crate::google::storage::v1::{ListObjectsRequest, ListObjectsResponse};
+use crate::google::storage::v1::{CopyObjectRequest, ListObjectsRequest, ListObjectsResponse};
 use crate::request::Request;
-use crate::storage::v1::GetObjectRequest;
+use crate::storage::v1::{GetObjectRequest, RewriteObjectRequest};
 use prost_types::Timestamp;
 
 #[test]
-fn valid_list_objects_url() {
+fn list_objects_url() {
     let bucket = "gs://bucket/object".parse::<ListObjectsRequest>().unwrap();
 
     let url = bucket
         .request_path(
-            &"https://storage.googleapis.com/storage/v1/"
+            "https://storage.googleapis.com/storage/v1/"
                 .parse()
                 .unwrap(),
         )
@@ -21,13 +21,84 @@ fn valid_list_objects_url() {
     );
 }
 
+// example from https://cloud.google.com/storage/docs/request-endpoints
 #[test]
-fn valid_get_object_url() {
+fn get_object_url_q() {
+    let request = GetObjectRequest {
+        bucket: "example-bucket".to_string(),
+        object: "foo??bar".to_string(),
+        ..Default::default()
+    };
+
+    let url = request
+        .request_path(
+            "https://storage.googleapis.com/storage/v1/"
+                .parse()
+                .unwrap(),
+        )
+        .unwrap();
+
+    assert_eq!(
+        url.as_str(),
+        "https://storage.googleapis.com/storage/v1/b/example-bucket/o/foo%3F%3Fbar"
+    );
+}
+
+#[test]
+fn copy_object_url() {
+    let request = CopyObjectRequest {
+        source_bucket: "bucket1".to_string(),
+        source_object: "foo/bar/baz".to_string(),
+        destination_bucket: "bucket1".to_string(),
+        destination_object: "foo/bar/baz".to_string(),
+        ..Default::default()
+    };
+
+    let url = request
+        .request_path(
+            "https://storage.googleapis.com/storage/v1/"
+                .parse()
+                .unwrap(),
+        )
+        .unwrap();
+
+    assert_eq!(
+        url.as_str(),
+        "https://storage.googleapis.com/storage/v1//b/bucket1/o/foo%2Fbar%2Fbaz/copyTo/b/bucket1/o/foo/bar/baz"
+    );
+}
+
+#[test]
+fn rewrite_object_url() {
+    let request = RewriteObjectRequest {
+        source_bucket: "bucket1".to_string(),
+        source_object: "foo/bar/baz".to_string(),
+        destination_bucket: "bucket1".to_string(),
+        destination_object: "foo/bar/baz".to_string(),
+        ..Default::default()
+    };
+
+    let url = request
+        .request_path(
+            "https://storage.googleapis.com/storage/v1/"
+                .parse()
+                .unwrap(),
+        )
+        .unwrap();
+
+    assert_eq!(
+        url.as_str(),
+        "https://storage.googleapis.com/storage/v1//b/bucket1/o/foo%2Fbar%2Fbaz/rewriteTo/b/bucket1/o/foo/bar/baz"
+    );
+}
+
+#[test]
+fn get_object_url() {
     let bucket = "gs://bucket/object".parse::<GetObjectRequest>().unwrap();
 
     let url = bucket
         .request_path(
-            &"https://storage.googleapis.com/storage/v1/"
+            "https://storage.googleapis.com/storage/v1/"
                 .parse()
                 .unwrap(),
         )

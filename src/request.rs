@@ -31,7 +31,7 @@ pub(crate) trait Request: Query {
         }
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url>;
+    fn request_path(&self, base_url: Url) -> Result<Url>;
 
     fn request_headers(&self) -> HeaderMap {
         HeaderMap::new()

@@ -13,7 +13,7 @@ use std::pin::Pin;
 use tracing::Instrument;
 use url::Url;
 
-fn hmac_keys_url(base_url: &Url, project_id: &str) -> Result<Url> {
+fn hmac_keys_url(base_url: Url, project_id: &str) -> Result<Url> {
     Ok(base_url
         .join("projects/")?
         .join(project_id)?
@@ -39,7 +39,7 @@ impl Request for CreateHmacKeyRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         hmac_keys_url(base_url, &self.project_id)
     }
 }
@@ -73,7 +73,7 @@ impl Request for ListHmacKeysRequest {
 
     type Response = ListHmacKeysResponse;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         hmac_keys_url(base_url, &self.project_id)
     }
 }
@@ -108,7 +108,7 @@ impl Request for GetHmacKeyRequest {
 
     type Response = HmacKeyMetadata;
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(hmac_keys_url(base_url, &self.project_id)?.join(&self.access_id)?)
     }
 }
@@ -128,7 +128,7 @@ impl Request for UpdateHmacKeyRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(hmac_keys_url(base_url, &self.project_id)?.join(&self.access_id)?)
     }
 }
@@ -148,7 +148,7 @@ impl Request for DeleteHmacKeyRequest {
         crate::request::Scope::FULL_CONTROL
     }
 
-    fn request_path(&self, base_url: &Url) -> Result<Url> {
+    fn request_path(&self, base_url: Url) -> Result<Url> {
         Ok(hmac_keys_url(base_url, &self.project_id)?.join(&self.access_id)?)
     }
 }
