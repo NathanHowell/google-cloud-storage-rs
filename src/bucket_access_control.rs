@@ -17,8 +17,8 @@ fn acl_url(base_url: Url, bucket: &str) -> Result<Url> {
 }
 
 impl Query for InsertBucketAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 
@@ -37,8 +37,8 @@ impl Request for InsertBucketAccessControlRequest {
 }
 
 impl Query for GetBucketAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 
@@ -53,8 +53,8 @@ impl Request for GetBucketAccessControlRequest {
 }
 
 impl Query for UpdateBucketAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 
@@ -73,8 +73,8 @@ impl Request for UpdateBucketAccessControlRequest {
 }
 
 impl Query for DeleteBucketAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 
@@ -93,8 +93,8 @@ impl Request for DeleteBucketAccessControlRequest {
 }
 
 impl Query for ListBucketAccessControlsRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 

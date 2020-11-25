@@ -84,7 +84,7 @@ impl Client {
 }
 
 impl Client {
-    fn request_builder<R: Request>(&self, request: R) -> Result<RequestBuilder> {
+    fn request_builder<R: Request>(&self, mut request: R) -> Result<RequestBuilder> {
         let path = request.request_path(self.base_url.clone())?;
 
         tracing::debug!(request_path = %path);

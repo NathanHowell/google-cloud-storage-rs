@@ -3,7 +3,7 @@ use crate::google::storage::v1::{
     InsertDefaultObjectAccessControlRequest, ListDefaultObjectAccessControlsRequest,
     ListObjectAccessControlsResponse, ObjectAccessControl, UpdateDefaultObjectAccessControlRequest,
 };
-use crate::query::Query;
+use crate::query::{PushIf, Query};
 use crate::request::Request;
 use crate::storage::v1::PatchDefaultObjectAccessControlRequest;
 use crate::urls::Urls;
@@ -17,8 +17,8 @@ fn default_object_acl_url(base_url: Url, bucket: &str) -> Result<Url> {
 }
 
 impl Query for InsertDefaultObjectAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 
@@ -37,19 +37,14 @@ impl Request for InsertDefaultObjectAccessControlRequest {
 }
 
 impl Query for ListDefaultObjectAccessControlsRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        let mut query = self.common_request_params.request_query();
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.take().request_query();
 
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
-
-        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
-            query.push((
-                "ifMetagenerationNotMatch",
-                if_metageneration_not_match.to_string(),
-            ));
-        }
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt(
+            "ifMetagenerationNotMatch",
+            &mut self.if_metageneration_not_match,
+        );
 
         query
     }
@@ -66,8 +61,8 @@ impl Request for ListDefaultObjectAccessControlsRequest {
 }
 
 impl Query for GetDefaultObjectAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 
@@ -82,8 +77,8 @@ impl Request for GetDefaultObjectAccessControlRequest {
 }
 
 impl Query for UpdateDefaultObjectAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 
@@ -102,8 +97,8 @@ impl Request for UpdateDefaultObjectAccessControlRequest {
 }
 
 impl Query for DeleteDefaultObjectAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 

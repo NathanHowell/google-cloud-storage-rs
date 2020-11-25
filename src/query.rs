@@ -2,24 +2,30 @@ use crate::google::storage::v1::common_enums::{
     PredefinedBucketAcl, PredefinedObjectAcl, Projection,
 };
 use crate::google::storage::v1::CommonRequestParams;
+use std::mem;
 
 pub(crate) trait Query {
-    fn request_query(&self) -> Vec<(&'static str, String)>;
+    fn request_query(&mut self) -> Vec<(&'static str, String)>;
 }
 
 impl<T: Query> Query for Option<T> {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.as_ref().map(|q| q.request_query()).unwrap_or_default()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.take()
+            .as_mut()
+            .map(|q| q.request_query())
+            .unwrap_or_default()
     }
 }
 
 impl Query for CommonRequestParams {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = Vec::new();
+
         if !self.quota_user.is_empty() {
-            query.push(("quotaUser", self.quota_user.clone()));
+            query.push(("quotaUser", mem::take(&mut self.quota_user)));
         }
-        if let Some(ref fields) = self.fields {
+
+        if let Some(ref fields) = self.fields.take() {
             query.push(("fields", fields.paths.join(",")));
         }
 
@@ -28,10 +34,10 @@ impl Query for CommonRequestParams {
 }
 
 impl Query for PredefinedBucketAcl {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         use PredefinedBucketAcl::*;
 
-        if let Some(predefined_acl) = match self {
+        if let Some(predefined_acl) = match mem::take(self) {
             Unspecified => None,
             BucketAclAuthenticatedRead => Some("authenticatedRead"),
             BucketAclPrivate => Some("private"),
@@ -47,7 +53,7 @@ impl Query for PredefinedBucketAcl {
 }
 
 impl Query for PredefinedObjectAcl {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         use PredefinedObjectAcl::*;
         if let Some(predefined_default_object_acl) = match self {
             Unspecified => None,
@@ -58,6 +64,7 @@ impl Query for PredefinedObjectAcl {
             ObjectAclProjectPrivate => Some("projectPrivate"),
             ObjectAclPublicRead => Some("publicRead"),
         } {
+            *self = Unspecified;
             vec![(
                 "predefinedDefaultObjectAcl",
                 predefined_default_object_acl.to_string(),
@@ -69,16 +76,37 @@ impl Query for PredefinedObjectAcl {
 }
 
 impl Query for Projection {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         use Projection::*;
         if let Some(projection) = match self {
             Unspecified => None,
             NoAcl => Some("noAcl"),
             Full => Some("full"),
         } {
+            *self = Unspecified;
             vec![("projection", projection.to_string())]
         } else {
             vec![]
+        }
+    }
+}
+
+pub(crate) trait PushIf<T> {
+    fn push_if(&mut self, key: &'static str, value: &mut T);
+    fn push_if_opt(&mut self, key: &'static str, value: &mut Option<T>);
+}
+
+impl<T: Default + PartialEq + ToString> PushIf<T> for Vec<(&'static str, String)> {
+    fn push_if(&mut self, key: &'static str, value: &mut T) {
+        if value != &Default::default() {
+            self.push((key, value.to_string()));
+        }
+    }
+
+    fn push_if_opt(&mut self, key: &'static str, value: &mut Option<T>) {
+        match value.take().as_mut() {
+            Some(value) => self.push_if(key, value),
+            None => {}
         }
     }
 }

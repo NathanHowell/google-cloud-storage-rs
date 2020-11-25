@@ -2,7 +2,7 @@ use crate::google::iam::v1::{Policy, TestIamPermissionsResponse};
 use crate::google::storage::v1::{
     GetIamPolicyRequest, SetIamPolicyRequest, TestIamPermissionsRequest,
 };
-use crate::query::Query;
+use crate::query::{PushIf, Query};
 use crate::request::Request;
 use crate::urls::Urls;
 use crate::{Client, Result};
@@ -26,21 +26,19 @@ where
 }
 
 impl Query for GetIamPolicyRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        let mut query = self.common_request_params.request_query();
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.take().request_query();
 
-        if let Some(requested_policy_version) = self
+        let mut requested_policy_version = self
             .iam_request
-            .as_ref()
-            .map(|r| r.options.as_ref())
-            .flatten()
-            .map(|o| o.requested_policy_version)
-        {
-            query.push((
-                "optionsRequestedPolicyVersion",
-                requested_policy_version.to_string(),
-            ));
-        }
+            .take()
+            .and_then(|r| r.options)
+            .map(|o| o.requested_policy_version);
+
+        query.push_if_opt(
+            "optionsRequestedPolicyVersion",
+            &mut requested_policy_version,
+        );
 
         query
     }
@@ -57,8 +55,8 @@ impl Request for GetIamPolicyRequest {
 }
 
 impl Query for SetIamPolicyRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        self.common_request_params.request_query()
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        self.common_request_params.take().request_query()
     }
 }
 
@@ -77,20 +75,16 @@ impl Request for SetIamPolicyRequest {
 }
 
 impl Query for TestIamPermissionsRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        let mut query = self.common_request_params.request_query();
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.take().request_query();
 
         query.extend(
             self.iam_request
-                .as_ref()
-                .map(|request| {
-                    request
-                        .permissions
-                        .iter()
-                        .map(|v| ("permissions", v.clone()))
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default(),
+                .take()
+                .into_iter()
+                .flat_map(|request| request.permissions)
+                .map(|v| ("permissions", v))
+                .collect::<Vec<_>>(),
         );
 
         query

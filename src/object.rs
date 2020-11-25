@@ -8,7 +8,7 @@ use crate::google::storage::v1::{
     RewriteObjectRequest, RewriteResponse, StartResumableWriteRequest, UpdateObjectRequest,
 };
 use crate::paginate::Paginate;
-use crate::query::Query;
+use crate::query::{PushIf, Query};
 use crate::request::Request;
 use crate::storage::v1::{
     InsertObjectSpec, Object, PatchObjectRequest, QueryWriteStatusRequest,
@@ -61,37 +61,46 @@ impl TryFrom<Url> for Object {
 }
 
 impl Query for CommonObjectRequestParams {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        vec![
-            (
-                "x-goog-encryption-algorithm",
-                self.encryption_algorithm.clone(),
-            ),
-            (
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        let mut query = Vec::new();
+
+        query.push_if(
+            "x-goog-encryption-algorithm",
+            &mut self.encryption_algorithm,
+        );
+
+        if !self.encryption_key.is_empty() {
+            query.push((
                 "x-goog-encryption-key",
-                base64::encode(self.encryption_key.as_bytes()),
-            ),
-            (
+                base64::encode(mem::take(&mut self.encryption_key).as_bytes()),
+            ))
+        }
+
+        if !self.encryption_key_sha256.is_empty() {
+            query.push((
                 "x-goog-encryption-key-sha256",
-                base64::encode(self.encryption_key_sha256.as_bytes()),
-            ),
-        ]
+                base64::encode(mem::take(&mut self.encryption_key_sha256).as_bytes()),
+            ));
+        }
+
+        query
     }
 }
 
 impl Query for InsertObjectRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        let insert_object_spec = match self.first_message.as_ref().unwrap() {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        // obviously this needs some work
+        let insert_object_spec = match self.first_message.as_mut().unwrap() {
             FirstMessage::UploadId(_) => panic!(),
             FirstMessage::InsertObjectSpec(spec) => spec,
         };
 
-        let resource = insert_object_spec.resource.as_ref().unwrap();
+        let mut resource = insert_object_spec.resource.take().unwrap();
 
         let mut query = self.common_request_params.request_query();
         query.extend(self.common_object_request_params.request_query());
         query.push(("uploadType", "media".to_string()));
-        query.push(("name", resource.name.clone()));
+        query.push(("name", mem::take(&mut resource.name)));
         query
     }
 }
@@ -119,10 +128,10 @@ impl Request for InsertObjectRequest {
 }
 
 impl Query for GetObjectRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
         query.extend(self.common_object_request_params.request_query());
-        query.extend(Projection::from_i32(self.projection).request_query());
+        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
         unimplemented!()
     }
 }
@@ -166,27 +175,20 @@ impl FromStr for GetObjectRequest {
 }
 
 impl Query for ComposeObjectRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
-
-        if let Some(if_generation_match) = self.if_generation_match {
-            query.push(("ifGenerationMatch", if_generation_match.to_string()));
-        }
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt("ifGenerationMatch", &mut self.if_generation_match);
 
         query.extend(
-            PredefinedObjectAcl::from_i32(self.destination_predefined_acl)
+            PredefinedObjectAcl::from_i32(mem::take(&mut self.destination_predefined_acl))
                 .request_query()
                 .into_iter()
                 .map(|(_, v)| ("destinationPredefinedAcl", v)),
         );
 
-        if !self.kms_key_name.is_empty() {
-            query.push(("kmsKeyName", self.kms_key_name.clone()));
-        }
+        query.push_if("kmsKeyName", &mut self.kms_key_name);
 
         query
     }
@@ -206,76 +208,47 @@ impl Request for ComposeObjectRequest {
 }
 
 impl Query for CopyObjectRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
         query.extend(self.common_object_request_params.request_query());
 
-        if !self.destination_kms_key_name.is_empty() {
-            query.push((
-                "destinationKmsKeyName",
-                self.destination_kms_key_name.clone(),
-            ));
-        }
+        query.push_if("destinationKmsKeyName", &mut self.destination_kms_key_name);
 
         query.extend(
-            PredefinedObjectAcl::from_i32(self.destination_predefined_acl)
+            PredefinedObjectAcl::from_i32(mem::take(&mut self.destination_predefined_acl))
                 .request_query()
                 .into_iter()
                 .map(|(_, v)| ("destinationPredefinedAcl", v)),
         );
 
-        if let Some(if_generation_match) = self.if_generation_match {
-            query.push(("ifGenerationMatch", if_generation_match.to_string()));
-        }
+        query.push_if_opt("ifGenerationMatch", &mut self.if_generation_match);
+        query.push_if_opt("ifGenerationNotMatch", &mut self.if_generation_not_match);
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt(
+            "ifMetagenerationNotMatch",
+            &mut self.if_metageneration_not_match,
+        );
 
-        if let Some(if_generation_not_match) = self.if_generation_not_match {
-            query.push(("ifGenerationNotMatch", if_generation_not_match.to_string()));
-        }
+        query.push_if_opt(
+            "ifSourceGenerationMatch",
+            &mut self.if_source_generation_match,
+        );
+        query.push_if_opt(
+            "ifSourceGenerationNotMatch",
+            &mut self.if_source_generation_not_match,
+        );
+        query.push_if_opt(
+            "ifSourceMetagenerationMatch",
+            &mut self.if_source_metageneration_match,
+        );
+        query.push_if_opt(
+            "ifSourceMetagenerationNotMatch",
+            &mut self.if_source_metageneration_not_match,
+        );
 
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
+        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
 
-        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
-            query.push((
-                "ifMetagenerationNotMatch",
-                if_metageneration_not_match.to_string(),
-            ));
-        }
-
-        if let Some(if_source_generation_match) = self.if_source_generation_match {
-            query.push((
-                "ifSourceGenerationMatch",
-                if_source_generation_match.to_string(),
-            ));
-        }
-
-        if let Some(if_source_generation_not_match) = self.if_source_generation_not_match {
-            query.push((
-                "ifSourceGenerationNotMatch",
-                if_source_generation_not_match.to_string(),
-            ));
-        }
-
-        if let Some(if_source_metageneration_match) = self.if_source_metageneration_match {
-            query.push((
-                "ifSourceMetagenerationMatch",
-                if_source_metageneration_match.to_string(),
-            ));
-        }
-
-        if let Some(if_source_metageneration_not_match) = self.if_source_metageneration_not_match {
-            query.push((
-                "ifSourceMetagenerationNotMatch",
-                if_source_metageneration_not_match.to_string(),
-            ));
-        }
-
-        query.extend(Projection::from_i32(self.projection).request_query());
-
-        if self.source_generation != 0 {
-            query.push(("sourceGeneration", self.source_generation.to_string()));
-        }
+        query.push_if("sourceGeneration", &mut self.source_generation);
 
         query
     }
@@ -297,87 +270,53 @@ impl Request for CopyObjectRequest {
 }
 
 impl Query for RewriteObjectRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
         query.extend(self.common_object_request_params.request_query());
 
-        if !self.destination_kms_key_name.is_empty() {
-            query.push((
-                "destinationKmsKeyName",
-                self.destination_kms_key_name.clone(),
-            ));
-        }
+        query.push_if("destinationKmsKeyName", &mut self.destination_kms_key_name);
 
         query.extend(
-            PredefinedObjectAcl::from_i32(self.destination_predefined_acl)
+            PredefinedObjectAcl::from_i32(mem::take(&mut self.destination_predefined_acl))
                 .request_query()
                 .into_iter()
                 .map(|(_, v)| ("destinationPredefinedAcl", v)),
         );
 
-        if let Some(if_generation_match) = self.if_generation_match {
-            query.push(("ifGenerationMatch", if_generation_match.to_string()));
-        }
+        query.push_if_opt("ifGenerationMatch", &mut self.if_generation_match);
+        query.push_if_opt("ifGenerationNotMatch", &mut self.if_generation_not_match);
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt(
+            "ifMetagenerationNotMatch",
+            &mut self.if_metageneration_not_match,
+        );
 
-        if let Some(if_generation_not_match) = self.if_generation_not_match {
-            query.push(("ifGenerationNotMatch", if_generation_not_match.to_string()));
-        }
+        query.push_if_opt(
+            "ifSourceGenerationMatch",
+            &mut self.if_source_generation_match,
+        );
+        query.push_if_opt(
+            "ifSourceGenerationNotMatch",
+            &mut self.if_source_generation_not_match,
+        );
+        query.push_if_opt(
+            "ifSourceMetagenerationMatch",
+            &mut self.if_source_metageneration_match,
+        );
+        query.push_if_opt(
+            "ifSourceMetagenerationNotMatch",
+            &mut self.if_source_metageneration_not_match,
+        );
 
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
+        query.push_if(
+            "maxBytesRewrittenPerCall",
+            &mut self.max_bytes_rewritten_per_call,
+        );
 
-        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
-            query.push((
-                "ifMetagenerationNotMatch",
-                if_metageneration_not_match.to_string(),
-            ));
-        }
+        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
 
-        if let Some(if_source_generation_match) = self.if_source_generation_match {
-            query.push((
-                "ifSourceGenerationMatch",
-                if_source_generation_match.to_string(),
-            ));
-        }
-
-        if let Some(if_source_generation_not_match) = self.if_source_generation_not_match {
-            query.push((
-                "ifSourceGenerationNotMatch",
-                if_source_generation_not_match.to_string(),
-            ));
-        }
-
-        if let Some(if_source_metageneration_match) = self.if_source_metageneration_match {
-            query.push((
-                "ifSourceMetagenerationMatch",
-                if_source_metageneration_match.to_string(),
-            ));
-        }
-
-        if let Some(if_source_metageneration_not_match) = self.if_source_metageneration_not_match {
-            query.push((
-                "ifSourceMetagenerationNotMatch",
-                if_source_metageneration_not_match.to_string(),
-            ));
-        }
-
-        if self.max_bytes_rewritten_per_call != 0 {
-            query.push((
-                "maxBytesRewrittenPerCall",
-                self.max_bytes_rewritten_per_call.to_string(),
-            ));
-        }
-
-        query.extend(Projection::from_i32(self.projection).request_query());
-
-        if !self.rewrite_token.is_empty() {
-            query.push(("rewriteToken", self.rewrite_token.clone()));
-        }
-
-        if self.source_generation != 0 {
-            query.push(("sourceGeneration", self.source_generation.to_string()));
-        }
+        query.push_if("rewriteToken", &mut self.rewrite_token);
+        query.push_if("sourceGeneration", &mut self.source_generation);
 
         query
     }
@@ -399,34 +338,19 @@ impl Request for RewriteObjectRequest {
 }
 
 impl Query for GetObjectMediaRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
         query.extend(self.common_object_request_params.request_query());
 
         query.push(("alt", "media".to_string()));
-
-        if self.generation != 0 {
-            query.push(("generation", self.generation.to_string()));
-        }
-
-        if let Some(if_generation_match) = self.if_generation_match {
-            query.push(("ifGenerationMatch", if_generation_match.to_string()));
-        }
-
-        if let Some(if_generation_not_match) = self.if_generation_not_match {
-            query.push(("ifGenerationNotMatch", if_generation_not_match.to_string()));
-        }
-
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
-
-        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
-            query.push((
-                "ifMetagenerationNotMatch",
-                if_metageneration_not_match.to_string(),
-            ));
-        }
+        query.push_if("generation", &mut self.generation);
+        query.push_if_opt("ifGenerationMatch", &mut self.if_generation_match);
+        query.push_if_opt("ifGenerationNotMatch", &mut self.if_generation_not_match);
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt(
+            "ifMetagenerationNotMatch",
+            &mut self.if_metageneration_not_match,
+        );
 
         query
     }
@@ -474,32 +398,18 @@ impl FromStr for GetObjectMediaRequest {
 }
 
 impl Query for DeleteObjectRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
         query.extend(self.common_object_request_params.request_query());
 
-        if self.generation != 0 {
-            query.push(("generation", self.generation.to_string()));
-        }
-
-        if let Some(if_generation_match) = self.if_generation_match {
-            query.push(("ifGenerationMatch", if_generation_match.to_string()));
-        }
-
-        if let Some(if_generation_not_match) = self.if_generation_not_match {
-            query.push(("ifGenerationNotMatch", if_generation_not_match.to_string()));
-        }
-
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
-
-        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
-            query.push((
-                "ifMetagenerationNotMatch",
-                if_metageneration_not_match.to_string(),
-            ));
-        }
+        query.push_if("generation", &mut self.generation);
+        query.push_if_opt("ifGenerationMatch", &mut self.if_generation_match);
+        query.push_if_opt("ifGenerationNotMatch", &mut self.if_generation_not_match);
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt(
+            "ifMetagenerationNotMatch",
+            &mut self.if_metageneration_not_match,
+        );
 
         query
     }
@@ -544,7 +454,7 @@ impl FromStr for DeleteObjectRequest {
 }
 
 impl Query for UpdateObjectRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         unimplemented!()
     }
 }
@@ -560,37 +470,20 @@ impl Request for UpdateObjectRequest {
 }
 
 impl Query for ListObjectsRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if !self.delimiter.is_empty() {
-            query.push(("delimiter", self.delimiter.clone()));
-        }
-
-        if self.include_trailing_delimiter {
-            query.push((
-                "includeTrailingDelimiter",
-                self.include_trailing_delimiter.to_string(),
-            ));
-        }
-
-        if self.max_results != 0 {
-            query.push(("maxResults", self.max_results.to_string()));
-        }
-
-        if !self.page_token.is_empty() {
-            query.push(("pageToken", self.page_token.clone()));
-        }
-
-        if !self.prefix.is_empty() {
-            query.push(("prefix", self.prefix.clone()));
-        }
-
-        query.extend(Projection::from_i32(self.projection).request_query());
-
-        if self.versions {
-            query.push(("versions", self.versions.to_string()));
-        }
+        query.push_if("delimiter", &mut self.delimiter);
+        query.push_if(
+            "includeTrailingDelimiter",
+            &mut self.include_trailing_delimiter,
+        );
+        query.push_if("maxResults", &mut self.max_results);
+        query.push_if("pageToken", &mut self.page_token);
+        query.push_if("prefix", &mut self.prefix);
+        query.push_if("pageToken", &mut self.page_token);
+        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
+        query.push_if("versions", &mut self.versions);
 
         query
     }

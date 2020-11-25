@@ -16,7 +16,7 @@ fn notification_configs_url(base_url: Url, bucket: &str) -> Result<Url> {
 }
 
 impl Query for DeleteNotificationRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         self.common_request_params.request_query()
     }
 }
@@ -32,7 +32,7 @@ impl Request for DeleteNotificationRequest {
 }
 
 impl Query for GetNotificationRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         self.common_request_params.request_query()
     }
 }
@@ -48,7 +48,7 @@ impl Request for GetNotificationRequest {
 }
 
 impl Query for InsertNotificationRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         self.common_request_params.request_query()
     }
 }
@@ -64,7 +64,7 @@ impl Request for InsertNotificationRequest {
 }
 
 impl Query for ListNotificationsRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         self.common_request_params.request_query()
     }
 }

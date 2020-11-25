@@ -6,7 +6,7 @@ use crate::google::storage::v1::{
     ListBucketsResponse, UpdateBucketRequest,
 };
 use crate::paginate::Paginate;
-use crate::query::Query;
+use crate::query::{PushIf, Query};
 use crate::request::Request;
 use crate::storage::v1::{Bucket, Object, PatchBucketRequest};
 use crate::urls::Urls;
@@ -15,6 +15,7 @@ use futures::{Stream, TryStreamExt};
 use reqwest::{Method, Url};
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
+use std::mem;
 use std::pin::Pin;
 use std::str::FromStr;
 use tracing::Instrument;
@@ -50,26 +51,15 @@ impl From<Object> for Bucket {
 }
 
 impl Query for ListBucketsRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if !self.project.is_empty() {
-            query.push(("project", self.project.clone()));
-        }
+        query.push_if("project", &mut self.project);
+        query.push_if("maxResults", &mut self.max_results);
+        query.push_if("pageToken", &mut self.page_token);
+        query.push_if("prefix", &mut self.prefix);
 
-        if self.max_results != 0 {
-            query.push(("maxResults", self.max_results.to_string()));
-        }
-
-        if !self.page_token.is_empty() {
-            query.push(("pageToken", self.page_token.clone()));
-        }
-
-        if !self.prefix.is_empty() {
-            query.push(("prefix", self.prefix.clone()));
-        }
-
-        query.extend(Projection::from_i32(self.projection).request_query());
+        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
 
         query
     }
@@ -105,18 +95,19 @@ impl<'a> Paginate<'a> for ListBucketsRequest {
 }
 
 impl Query for InsertBucketRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
-        let mut query = self.common_request_params.request_query();
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
+        let mut query = self.common_request_params.take().request_query();
 
-        if !self.project.is_empty() {
-            query.push(("project", self.project.clone()));
-        }
+        query.push_if("project", &mut self.project);
 
-        query.extend(PredefinedBucketAcl::from_i32(self.predefined_acl).request_query());
         query.extend(
-            PredefinedObjectAcl::from_i32(self.predefined_default_object_acl).request_query(),
+            PredefinedBucketAcl::from_i32(mem::take(&mut self.predefined_acl)).request_query(),
         );
-        query.extend(Projection::from_i32(self.projection).request_query());
+        query.extend(
+            PredefinedObjectAcl::from_i32(mem::take(&mut self.predefined_default_object_acl))
+                .request_query(),
+        );
+        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
 
         query
     }
@@ -142,19 +133,14 @@ impl From<Bucket> for InsertBucketRequest {
 }
 
 impl Query for DeleteBucketRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
-
-        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
-            query.push((
-                "ifMetagenerationNotMatch",
-                if_metageneration_not_match.to_string(),
-            ));
-        }
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt(
+            "ifMetagenerationNotMatch",
+            &mut self.if_metageneration_not_match,
+        );
 
         query
     }
@@ -191,21 +177,16 @@ impl FromStr for DeleteBucketRequest {
 }
 
 impl Query for GetBucketRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt(
+            "ifMetagenerationNotMatch",
+            &mut self.if_metageneration_not_match,
+        );
 
-        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
-            query.push((
-                "ifMetagenerationNotMatch",
-                if_metageneration_not_match.to_string(),
-            ));
-        }
-
-        query.extend(Projection::from_i32(self.projection).request_query());
+        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
 
         query
     }
@@ -252,25 +233,23 @@ impl From<Bucket> for GetBucketRequest {
 }
 
 impl Query for UpdateBucketRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if let Some(if_metageneration_match) = self.if_metageneration_match {
-            query.push(("ifMetagenerationMatch", if_metageneration_match.to_string()));
-        }
-
-        if let Some(if_metageneration_not_match) = self.if_metageneration_not_match {
-            query.push((
-                "ifMetagenerationNotMatch",
-                if_metageneration_not_match.to_string(),
-            ));
-        }
-
-        query.extend(PredefinedBucketAcl::from_i32(self.predefined_acl).request_query());
-        query.extend(
-            PredefinedObjectAcl::from_i32(self.predefined_default_object_acl).request_query(),
+        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
+        query.push_if_opt(
+            "ifMetagenerationNotMatch",
+            &mut self.if_metageneration_not_match,
         );
-        query.extend(Projection::from_i32(self.projection).request_query());
+
+        query.extend(
+            PredefinedBucketAcl::from_i32(mem::take(&mut self.predefined_acl)).request_query(),
+        );
+        query.extend(
+            PredefinedObjectAcl::from_i32(mem::take(&mut self.predefined_default_object_acl))
+                .request_query(),
+        );
+        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
 
         query
     }

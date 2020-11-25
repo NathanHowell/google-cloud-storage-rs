@@ -3,7 +3,7 @@ use crate::google::storage::v1::{
     HmacKeyMetadata, ListHmacKeysRequest, ListHmacKeysResponse, UpdateHmacKeyRequest,
 };
 use crate::paginate::Paginate;
-use crate::query::Query;
+use crate::query::{PushIf, Query};
 use crate::request::Request;
 use crate::{Client, Result};
 use futures::{Stream, TryStreamExt};
@@ -21,10 +21,10 @@ fn hmac_keys_url(base_url: Url, project_id: &str) -> Result<Url> {
 }
 
 impl Query for CreateHmacKeyRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push(("serviceAccountEmail", self.service_account_email.clone()));
+        query.push_if("serviceAccountEmail", &mut self.service_account_email);
 
         query
     }
@@ -45,24 +45,13 @@ impl Request for CreateHmacKeyRequest {
 }
 
 impl Query for ListHmacKeysRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if self.max_results != 0 {
-            query.push(("maxResults", self.max_results.to_string()));
-        }
-
-        if !self.page_token.is_empty() {
-            query.push(("pageToken", self.page_token.clone()));
-        }
-
-        if !self.service_account_email.is_empty() {
-            query.push(("serviceAccountEmail", self.service_account_email.clone()));
-        }
-
-        if self.show_deleted_keys {
-            query.push(("showDeletedKeys", self.show_deleted_keys.to_string()));
-        }
+        query.push_if("maxResults", &mut self.max_results);
+        query.push_if("pageToken", &mut self.page_token);
+        query.push_if("serviceAccountEmail", &mut self.service_account_email);
+        query.push_if("showDeletedKeys", &mut self.show_deleted_keys);
 
         query
     }
@@ -98,7 +87,7 @@ impl<'a> Paginate<'a> for ListHmacKeysRequest {
 }
 
 impl Query for GetHmacKeyRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         self.common_request_params.request_query()
     }
 }
@@ -114,7 +103,7 @@ impl Request for GetHmacKeyRequest {
 }
 
 impl Query for UpdateHmacKeyRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         self.common_request_params.request_query()
     }
 }
@@ -134,7 +123,7 @@ impl Request for UpdateHmacKeyRequest {
 }
 
 impl Query for DeleteHmacKeyRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         self.common_request_params.request_query()
     }
 }

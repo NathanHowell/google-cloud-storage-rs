@@ -3,7 +3,7 @@ use crate::google::storage::v1::{
     InsertObjectAccessControlRequest, ListObjectAccessControlsRequest,
     ListObjectAccessControlsResponse, ObjectAccessControl, UpdateObjectAccessControlRequest,
 };
-use crate::query::Query;
+use crate::query::{PushIf, Query};
 use crate::request::Request;
 use crate::storage::v1::PatchObjectAccessControlRequest;
 use crate::urls::Urls;
@@ -16,12 +16,10 @@ fn acl_url(base_url: Url, bucket: &str, object: &str) -> Result<Url> {
 }
 
 impl Query for InsertObjectAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if self.generation != 0 {
-            query.push(("generation", self.generation.to_string()));
-        }
+        query.push_if("generation", &mut self.generation);
 
         query
     }
@@ -42,7 +40,7 @@ impl Request for InsertObjectAccessControlRequest {
 }
 
 impl Query for ListObjectAccessControlsRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         unimplemented!()
     }
 }
@@ -58,12 +56,10 @@ impl Request for ListObjectAccessControlsRequest {
 }
 
 impl Query for GetObjectAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if self.generation != 0 {
-            query.push(("generation", self.generation.to_string()));
-        }
+        query.push_if("generation", &mut self.generation);
 
         query
     }
@@ -80,12 +76,10 @@ impl Request for GetObjectAccessControlRequest {
 }
 
 impl Query for UpdateObjectAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if self.generation != 0 {
-            query.push(("generation", self.generation.to_string()));
-        }
+        query.push_if("generation", &mut self.generation);
 
         query
     }
@@ -106,12 +100,10 @@ impl Request for UpdateObjectAccessControlRequest {
 }
 
 impl Query for DeleteObjectAccessControlRequest {
-    fn request_query(&self) -> Vec<(&'static str, String)> {
+    fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        if self.generation != 0 {
-            query.push(("generation", self.generation.to_string()));
-        }
+        query.push_if("generation", &mut self.generation);
 
         query
     }
