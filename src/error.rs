@@ -63,7 +63,7 @@ pub enum Error {
     #[error(transparent)]
     Other {
         #[from]
-        source: Box<dyn std::error::Error>,
+        source: Box<dyn std::error::Error + Send + Sync>,
         #[cfg(feature = "backtrace")]
         backtrace: Backtrace,
     },

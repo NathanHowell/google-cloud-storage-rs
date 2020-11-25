@@ -2,17 +2,17 @@ use crate::google::storage::v1::common_enums::{PredefinedObjectAcl, Projection};
 use crate::google::storage::v1::compose_object_request::SourceObjects;
 use crate::google::storage::v1::insert_object_request::FirstMessage;
 use crate::google::storage::v1::{
-    Bucket, CommonObjectRequestParams, ComposeObjectRequest, CopyObjectRequest,
-    DeleteObjectRequest, GetObjectMediaRequest, GetObjectRequest, InsertObjectRequest,
-    ListObjectsRequest, ListObjectsResponse, RewriteObjectRequest, RewriteResponse,
-    StartResumableWriteRequest, UpdateObjectRequest,
+    Bucket, CommonObjectRequestParams, CommonRequestParams, ComposeObjectRequest,
+    CopyObjectRequest, DeleteObjectRequest, GetObjectMediaRequest, GetObjectRequest,
+    InsertObjectRequest, ListObjectsRequest, ListObjectsResponse, ObjectChecksums,
+    RewriteObjectRequest, RewriteResponse, StartResumableWriteRequest, UpdateObjectRequest,
 };
 use crate::paginate::Paginate;
 use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::{
-    Object, PatchObjectRequest, QueryWriteStatusRequest, QueryWriteStatusResponse,
-    StartResumableWriteResponse,
+    InsertObjectSpec, Object, PatchObjectRequest, QueryWriteStatusRequest,
+    QueryWriteStatusResponse, StartResumableWriteResponse,
 };
 use crate::urls::Urls;
 use crate::Client;
@@ -20,11 +20,12 @@ use crate::Result;
 use bytes::Bytes;
 use futures::{Stream, TryStreamExt};
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::{Method, Url};
+use reqwest::{Body, Method, Url};
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
 use std::pin::Pin;
 use std::str::FromStr;
+use tokio::stream::StreamExt;
 use tracing::Instrument;
 
 impl FromStr for Object {
@@ -695,13 +696,29 @@ impl Client {
         unimplemented!()
     }
 
-    #[tracing::instrument]
-    pub async fn insert_object_stream<S: Stream<Item = Bytes> + Debug>(
+    #[tracing::instrument(skip(bytes))]
+    pub async fn insert_object_stream<S>(
         &self,
-        first_message: FirstMessage,
-        request: impl Into<S> + Debug,
-    ) -> crate::Result<Object> {
-        unimplemented!();
+        request: InsertObjectSpec,
+        object_checksums: Option<ObjectChecksums>,
+        common_object_request_params: Option<CommonObjectRequestParams>,
+        common_request_params: Option<CommonRequestParams>,
+        bytes: impl Into<S>,
+    ) -> crate::Result<Object>
+    where
+        S: Stream<Item = Bytes> + Send + Sync + 'static,
+    {
+        let bytes = bytes.into().map::<crate::Result<Bytes>, _>(Ok);
+
+        let request = InsertObjectRequest {
+            object_checksums,
+            common_object_request_params,
+            common_request_params,
+            first_message: Some(FirstMessage::InsertObjectSpec(request)),
+            ..Default::default()
+        };
+
+        self.invoke_body(&request, Body::wrap_stream(bytes)).await
     }
 
     #[doc = " Retrieves a list of objects matching the criteria."]
@@ -771,11 +788,7 @@ impl Client {
             .get(&request)
             .await?
             .bytes_stream()
-            .map_err(|e| crate::Error::Reqwest {
-                source: e,
-                #[cfg(feature = "backtrace")]
-                backtrace: std::backtrace::Backtrace::capture(),
-            }))
+            .map_err(|e| e.into()))
     }
 
     #[doc = " Updates an object's metadata."]
