@@ -18,7 +18,7 @@ use crate::urls::Urls;
 use crate::Client;
 use crate::Result;
 use bytes::Bytes;
-use futures::{Stream, TryStreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Body, Method, Url};
 use std::convert::{TryFrom, TryInto};
@@ -26,7 +26,6 @@ use std::fmt::Debug;
 use std::mem;
 use std::pin::Pin;
 use std::str::FromStr;
-use tokio::stream::StreamExt;
 use tracing::Instrument;
 
 impl FromStr for Object {
