@@ -115,10 +115,11 @@ impl Client {
         &self,
         request: impl Into<InsertBucketAccessControlRequest> + Debug,
     ) -> crate::Result<BucketAccessControl> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.bucket_access_control)
-            .await
+        let bucket_access_control = request.bucket_access_control.take();
+
+        self.invoke_json(request, bucket_access_control).await
     }
 
     #[doc = " Retrieves ACL entries on the specified bucket."]
@@ -129,7 +130,7 @@ impl Client {
     ) -> crate::Result<ListBucketAccessControlsResponse> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Returns the ACL entry for the specified entity on the specified bucket."]
@@ -140,7 +141,7 @@ impl Client {
     ) -> crate::Result<BucketAccessControl> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Updates an ACL entry on the specified bucket. Equivalent to"]
@@ -151,10 +152,11 @@ impl Client {
         &self,
         request: impl Into<UpdateBucketAccessControlRequest> + Debug,
     ) -> crate::Result<BucketAccessControl> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.bucket_access_control)
-            .await
+        let bucket_access_control = request.bucket_access_control.take();
+
+        self.invoke_json(request, bucket_access_control).await
     }
 
     #[doc = " Permanently deletes the ACL entry for the specified entity on the specified"]
@@ -166,7 +168,7 @@ impl Client {
     ) -> crate::Result<()> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Updates an ACL entry on the specified bucket."]

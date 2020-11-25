@@ -162,7 +162,7 @@ impl Client {
     ) -> crate::Result<CreateHmacKeyResponse> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Lists HMAC keys under a given project with the additional filters provided."]
@@ -173,7 +173,7 @@ impl Client {
     ) -> crate::Result<ListHmacKeysResponse> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Lists HMAC keys under a given project with the additional filters provided."]
@@ -206,7 +206,7 @@ impl Client {
     ) -> crate::Result<HmacKeyMetadata> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Updates a given HMAC key state between ACTIVE and INACTIVE."]
@@ -215,9 +215,11 @@ impl Client {
         &self,
         request: impl Into<UpdateHmacKeyRequest> + Debug,
     ) -> crate::Result<HmacKeyMetadata> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.metadata).await
+        let metadata = request.metadata.take();
+
+        self.invoke_json(request, metadata).await
     }
 
     #[doc = " Deletes a given HMAC key.  Key must be in an INACTIVE state."]
@@ -228,6 +230,6 @@ impl Client {
     ) -> crate::Result<()> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 }

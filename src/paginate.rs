@@ -19,7 +19,7 @@ impl Client {
 
         Box::pin(try_stream! {
             while let Some(request) = next {
-                let response = self.invoke(&request).await?;
+                let response = self.invoke(request).await?;
                 next = T::into_request(initial.clone(), &response);
                 for item in T::extract_items(response) {
                     yield item

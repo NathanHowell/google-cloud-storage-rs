@@ -306,9 +306,11 @@ impl Client {
         &self,
         request: impl Into<InsertBucketRequest> + Debug,
     ) -> Result<Bucket> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.bucket).await
+        let bucket = request.bucket.take();
+
+        self.invoke_json(request, bucket).await
     }
 
     #[doc = " Retrieves a list of buckets for a given project."]
@@ -319,7 +321,7 @@ impl Client {
     ) -> Result<ListBucketsResponse> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Retrieves a list of buckets for a given project."]
@@ -352,7 +354,7 @@ impl Client {
     ) -> crate::Result<Bucket> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Updates a bucket. Changes to the bucket will be readable immediately after"]
@@ -374,9 +376,11 @@ impl Client {
         &self,
         request: impl Into<UpdateBucketRequest> + Debug,
     ) -> crate::Result<Bucket> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.metadata).await
+        let metadata = request.metadata.take();
+
+        self.invoke_json(request, metadata).await
     }
 
     #[doc = " Permanently deletes an empty bucket."]
@@ -387,6 +391,6 @@ impl Client {
     ) -> crate::Result<()> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 }

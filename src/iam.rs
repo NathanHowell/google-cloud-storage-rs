@@ -119,7 +119,7 @@ impl Client {
     ) -> crate::Result<Policy> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Updates an IAM policy for the specified bucket."]
@@ -128,14 +128,11 @@ impl Client {
         &self,
         request: impl Into<SetIamPolicyRequest> + Debug,
     ) -> crate::Result<Policy> {
-        let request = request.into();
+        let mut request = request.into();
 
-        let policy = match request.iam_request {
-            Some(ref k) => k.policy.as_ref(),
-            None => None,
-        };
+        let policy = request.iam_request.take().and_then(|r| r.policy);
 
-        self.invoke_json(&request, &policy).await
+        self.invoke_json(request, policy).await
     }
 
     #[doc = " Tests a set of permissions on the given bucket to see which, if"]
@@ -147,6 +144,6 @@ impl Client {
     ) -> crate::Result<TestIamPermissionsResponse> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 }

@@ -84,7 +84,7 @@ impl Client {
 }
 
 impl Client {
-    fn request_builder<R: Request>(&self, request: &R) -> Result<RequestBuilder> {
+    fn request_builder<R: Request>(&self, request: R) -> Result<RequestBuilder> {
         let path = request.request_path(self.base_url.clone())?;
 
         tracing::debug!(request_path = %path);
@@ -97,13 +97,13 @@ impl Client {
             .query(&request.request_query()))
     }
 
-    async fn request<R: Request>(&self, request: &R) -> Result<Response> {
+    async fn request<R: Request>(&self, request: R) -> Result<Response> {
         self.request_body(request, vec![]).await
     }
 
     async fn request_body<R: Request>(
         &self,
-        request: &R,
+        request: R,
         body: impl Into<Body>,
     ) -> Result<Response> {
         Ok(self
@@ -119,14 +119,15 @@ impl Client {
 
     async fn request_json<R: Request, T: Serialize>(
         &self,
-        request: &R,
-        body: &T,
+        request: R,
+        body: T,
     ) -> Result<Response> {
-        let body = serde_json::to_vec(body)?;
-        self.request_body(request, body).await
+        let bytes = serde_json::to_vec(&body)?;
+        drop(body);
+        self.request_body(request, bytes).await
     }
 
-    pub(crate) async fn invoke<R: Request>(&self, request: &R) -> Result<R::Response> {
+    pub(crate) async fn invoke<R: Request>(&self, request: R) -> Result<R::Response> {
         Ok(self
             .request(request)
             .instrument(tracing::trace_span!("sending"))
@@ -141,7 +142,7 @@ impl Client {
 
     pub(crate) async fn invoke_body<R: Request>(
         &self,
-        request: &R,
+        request: R,
         body: impl Into<Body>,
     ) -> Result<R::Response> {
         Ok(self
@@ -158,8 +159,8 @@ impl Client {
 
     pub(crate) async fn invoke_json<R: Request, T: Serialize>(
         &self,
-        request: &R,
-        body: &T,
+        request: R,
+        body: T,
     ) -> Result<R::Response> {
         Ok(self
             .request_json(request, body)
@@ -173,7 +174,7 @@ impl Client {
             .await?)
     }
 
-    pub(crate) async fn get<R: Request>(&self, request: &R) -> Result<Response> {
+    pub(crate) async fn get<R: Request>(&self, request: R) -> Result<Response> {
         Ok(self
             .request(request)
             .instrument(tracing::trace_span!("sending"))

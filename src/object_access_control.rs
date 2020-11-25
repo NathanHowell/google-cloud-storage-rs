@@ -138,10 +138,11 @@ impl Client {
         &self,
         request: impl Into<InsertObjectAccessControlRequest> + Debug,
     ) -> crate::Result<ObjectAccessControl> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.object_access_control)
-            .await
+        let object_access_control = request.object_access_control.take();
+
+        self.invoke_json(request, object_access_control).await
     }
 
     #[doc = " Retrieves ACL entries on the specified object."]
@@ -152,7 +153,7 @@ impl Client {
     ) -> crate::Result<ListObjectAccessControlsResponse> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Returns the ACL entry for the specified entity on the specified object."]
@@ -163,7 +164,7 @@ impl Client {
     ) -> crate::Result<ObjectAccessControl> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Patches an ACL entry on the specified object.  Patch is similar to update,"]
@@ -182,10 +183,11 @@ impl Client {
         &self,
         request: impl Into<UpdateObjectAccessControlRequest> + Debug,
     ) -> crate::Result<ObjectAccessControl> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.object_access_control)
-            .await
+        let object_access_control = request.object_access_control.take();
+
+        self.invoke_json(request, object_access_control).await
     }
 
     #[doc = " Permanently deletes the ACL entry for the specified entity on the specified"]
@@ -197,6 +199,6 @@ impl Client {
     ) -> crate::Result<()> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 }

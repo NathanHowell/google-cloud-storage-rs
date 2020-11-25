@@ -23,6 +23,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::{Body, Method, Url};
 use std::convert::{TryFrom, TryInto};
 use std::fmt::Debug;
+use std::mem;
 use std::pin::Pin;
 use std::str::FromStr;
 use tokio::stream::StreamExt;
@@ -718,7 +719,7 @@ impl Client {
             ..Default::default()
         };
 
-        self.invoke_body(&request, Body::wrap_stream(bytes)).await
+        self.invoke_body(request, Body::wrap_stream(bytes)).await
     }
 
     #[doc = " Retrieves a list of objects matching the criteria."]
@@ -729,7 +730,7 @@ impl Client {
     ) -> Result<ListObjectsResponse> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Retrieves a list of objects matching the criteria."]
@@ -762,7 +763,7 @@ impl Client {
     ) -> crate::Result<Object> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Reads an object's data."]
@@ -773,7 +774,7 @@ impl Client {
     ) -> Result<Vec<u8>> {
         let request = request.into();
 
-        Ok(self.get(&request).await?.bytes().await?.to_vec())
+        Ok(self.get(request).await?.bytes().await?.to_vec())
     }
 
     #[doc = " Reads an object's data."]
@@ -785,7 +786,7 @@ impl Client {
         let request = request.into();
 
         Ok(self
-            .get(&request)
+            .get(request)
             .await?
             .bytes_stream()
             .map_err(|e| e.into()))
@@ -807,9 +808,11 @@ impl Client {
         &self,
         request: impl Into<UpdateObjectRequest> + Debug,
     ) -> crate::Result<Object> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.metadata).await
+        let metadata = request.metadata.take();
+
+        self.invoke_json(request, metadata).await
     }
 
     #[doc = " Deletes an object and its metadata. Deletions are permanent if versioning"]
@@ -822,7 +825,7 @@ impl Client {
     ) -> Result<()> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Concatenates a list of existing objects into a new object in the same"]
@@ -832,7 +835,7 @@ impl Client {
         &self,
         request: impl Into<ComposeObjectRequest> + Debug,
     ) -> crate::Result<Object> {
-        let request = request.into();
+        let mut request = request.into();
 
         #[derive(Debug, serde::Serialize)]
         #[serde(rename_all = "camelCase")]
@@ -844,15 +847,15 @@ impl Client {
 
         let body = ComposeRequest {
             kind: "storage#composeRequest",
-            source_objects: request.source_objects.clone(),
+            source_objects: mem::take(&mut request.source_objects),
             destination: Object {
-                name: request.destination_object.clone(),
-                bucket: request.destination_bucket.clone(),
-                ..request.destination.clone().unwrap_or_default()
+                name: mem::take(&mut request.destination_object),
+                bucket: mem::take(&mut request.destination_bucket),
+                ..request.destination.take().unwrap_or_default()
             },
         };
 
-        self.invoke_json(&request, &body).await
+        self.invoke_json(request, body).await
     }
 
     #[doc = " Copies a source object to a destination object. Optionally overrides"]
@@ -862,9 +865,11 @@ impl Client {
         &self,
         request: impl Into<CopyObjectRequest> + Debug,
     ) -> crate::Result<Object> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.destination).await
+        let destination = request.destination.take();
+
+        self.invoke_json(request, destination).await
     }
 
     #[doc = " Rewrites a source object to a destination object. Optionally overrides"]
@@ -874,9 +879,11 @@ impl Client {
         &self,
         request: impl Into<RewriteObjectRequest> + Debug,
     ) -> crate::Result<RewriteResponse> {
-        let request = request.into();
+        let mut request = request.into();
 
-        self.invoke_json(&request, &request.object).await
+        let object = request.object.take();
+
+        self.invoke_json(request, object).await
     }
 
     #[doc = " Starts a resumable write. How long the write operation remains valid, and"]

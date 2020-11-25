@@ -89,7 +89,7 @@ impl Client {
     ) -> Result<()> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " View a notification configuration."]
@@ -99,7 +99,7 @@ impl Client {
     ) -> Result<Notification> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Creates a notification subscription for a given bucket."]
@@ -112,7 +112,7 @@ impl Client {
     ) -> Result<Notification> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 
     #[doc = " Retrieves a list of notification subscriptions for a given bucket."]
@@ -122,6 +122,6 @@ impl Client {
     ) -> Result<ListNotificationsResponse> {
         let request = request.into();
 
-        self.invoke(&request).await
+        self.invoke(request).await
     }
 }
