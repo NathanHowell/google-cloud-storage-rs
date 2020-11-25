@@ -2,6 +2,7 @@ use crate::google::storage::v1::common_enums::{
     PredefinedBucketAcl, PredefinedObjectAcl, Projection,
 };
 use crate::google::storage::v1::CommonRequestParams;
+use crate::push_if;
 use std::mem;
 
 pub(crate) trait Query {
@@ -21,9 +22,7 @@ impl Query for CommonRequestParams {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = Vec::new();
 
-        if !self.quota_user.is_empty() {
-            query.push(("quotaUser", mem::take(&mut self.quota_user)));
-        }
+        push_if!(self, query, quota_user);
 
         if let Some(ref fields) = self.fields.take() {
             query.push(("fields", fields.paths.join(",")));

@@ -3,9 +3,9 @@ use crate::google::storage::v1::{
     HmacKeyMetadata, ListHmacKeysRequest, ListHmacKeysResponse, UpdateHmacKeyRequest,
 };
 use crate::paginate::Paginate;
-use crate::query::{PushIf, Query};
+use crate::query::Query;
 use crate::request::Request;
-use crate::{Client, Result};
+use crate::{push_if, Client, Result};
 use futures::{Stream, TryStreamExt};
 use reqwest::Method;
 use std::fmt::Debug;
@@ -24,7 +24,7 @@ impl Query for CreateHmacKeyRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if("serviceAccountEmail", &mut self.service_account_email);
+        push_if!(self, query, service_account_email);
 
         query
     }
@@ -48,10 +48,10 @@ impl Query for ListHmacKeysRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if("maxResults", &mut self.max_results);
-        query.push_if("pageToken", &mut self.page_token);
-        query.push_if("serviceAccountEmail", &mut self.service_account_email);
-        query.push_if("showDeletedKeys", &mut self.show_deleted_keys);
+        push_if!(self, query, max_results);
+        push_if!(self, query, page_token);
+        push_if!(self, query, service_account_email);
+        push_if!(self, query, show_deleted_keys);
 
         query
     }

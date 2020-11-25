@@ -3,6 +3,7 @@
 mod bucket;
 mod bucket_access_control;
 mod client;
+mod constants;
 mod default_object_access_control;
 mod encode;
 mod error;

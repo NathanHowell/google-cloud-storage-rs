@@ -3,11 +3,11 @@ use crate::google::storage::v1::{
     InsertObjectAccessControlRequest, ListObjectAccessControlsRequest,
     ListObjectAccessControlsResponse, ObjectAccessControl, UpdateObjectAccessControlRequest,
 };
-use crate::query::{PushIf, Query};
+use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::PatchObjectAccessControlRequest;
 use crate::urls::Urls;
-use crate::{Client, Result};
+use crate::{push_if, Client, Result};
 use reqwest::{Method, Url};
 use std::fmt::Debug;
 
@@ -19,7 +19,7 @@ impl Query for InsertObjectAccessControlRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if("generation", &mut self.generation);
+        push_if!(self, query, generation);
 
         query
     }
@@ -59,7 +59,7 @@ impl Query for GetObjectAccessControlRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if("generation", &mut self.generation);
+        push_if!(self, query, generation);
 
         query
     }
@@ -79,7 +79,7 @@ impl Query for UpdateObjectAccessControlRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if("generation", &mut self.generation);
+        push_if!(self, query, generation);
 
         query
     }
@@ -103,7 +103,7 @@ impl Query for DeleteObjectAccessControlRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if("generation", &mut self.generation);
+        push_if!(self, query, generation);
 
         query
     }

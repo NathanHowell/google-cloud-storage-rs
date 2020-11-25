@@ -6,11 +6,11 @@ use crate::google::storage::v1::{
     ListBucketsResponse, UpdateBucketRequest,
 };
 use crate::paginate::Paginate;
-use crate::query::{PushIf, Query};
+use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::{Bucket, Object, PatchBucketRequest};
 use crate::urls::Urls;
-use crate::{Client, Result};
+use crate::{push_enum, push_if, push_if_opt, Client, Result};
 use futures::{Stream, TryStreamExt};
 use reqwest::{Method, Url};
 use std::convert::{TryFrom, TryInto};
@@ -54,12 +54,12 @@ impl Query for ListBucketsRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if("project", &mut self.project);
-        query.push_if("maxResults", &mut self.max_results);
-        query.push_if("pageToken", &mut self.page_token);
-        query.push_if("prefix", &mut self.prefix);
+        push_if!(self, query, project);
+        push_if!(self, query, max_results);
+        push_if!(self, query, page_token);
+        push_if!(self, query, prefix);
 
-        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
+        push_enum!(self, query, Projection, projection);
 
         query
     }
@@ -98,16 +98,16 @@ impl Query for InsertBucketRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.take().request_query();
 
-        query.push_if("project", &mut self.project);
+        push_if!(self, query, project);
 
-        query.extend(
-            PredefinedBucketAcl::from_i32(mem::take(&mut self.predefined_acl)).request_query(),
+        push_enum!(self, query, PredefinedBucketAcl, predefined_acl);
+        push_enum!(
+            self,
+            query,
+            PredefinedObjectAcl,
+            predefined_default_object_acl
         );
-        query.extend(
-            PredefinedObjectAcl::from_i32(mem::take(&mut self.predefined_default_object_acl))
-                .request_query(),
-        );
-        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
+        push_enum!(self, query, Projection, projection);
 
         query
     }
@@ -136,11 +136,8 @@ impl Query for DeleteBucketRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
-        query.push_if_opt(
-            "ifMetagenerationNotMatch",
-            &mut self.if_metageneration_not_match,
-        );
+        push_if_opt!(self, query, if_metageneration_match);
+        push_if_opt!(self, query, if_metageneration_not_match);
 
         query
     }
@@ -180,13 +177,10 @@ impl Query for GetBucketRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
-        query.push_if_opt(
-            "ifMetagenerationNotMatch",
-            &mut self.if_metageneration_not_match,
-        );
+        push_if_opt!(self, query, if_metageneration_match);
+        push_if_opt!(self, query, if_metageneration_not_match);
 
-        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
+        push_enum!(self, query, Projection, projection);
 
         query
     }
@@ -236,20 +230,17 @@ impl Query for UpdateBucketRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.request_query();
 
-        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
-        query.push_if_opt(
-            "ifMetagenerationNotMatch",
-            &mut self.if_metageneration_not_match,
-        );
+        push_if_opt!(self, query, if_metageneration_match);
+        push_if_opt!(self, query, if_metageneration_not_match);
 
-        query.extend(
-            PredefinedBucketAcl::from_i32(mem::take(&mut self.predefined_acl)).request_query(),
+        push_enum!(self, query, PredefinedBucketAcl, predefined_acl);
+        push_enum!(
+            self,
+            query,
+            PredefinedObjectAcl,
+            predefined_default_object_acl
         );
-        query.extend(
-            PredefinedObjectAcl::from_i32(mem::take(&mut self.predefined_default_object_acl))
-                .request_query(),
-        );
-        query.extend(Projection::from_i32(mem::take(&mut self.projection)).request_query());
+        push_enum!(self, query, Projection, projection);
 
         query
     }

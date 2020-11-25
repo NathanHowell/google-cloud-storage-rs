@@ -3,11 +3,11 @@ use crate::google::storage::v1::{
     InsertDefaultObjectAccessControlRequest, ListDefaultObjectAccessControlsRequest,
     ListObjectAccessControlsResponse, ObjectAccessControl, UpdateDefaultObjectAccessControlRequest,
 };
-use crate::query::{PushIf, Query};
+use crate::query::Query;
 use crate::request::Request;
 use crate::storage::v1::PatchDefaultObjectAccessControlRequest;
 use crate::urls::Urls;
-use crate::{Client, Result};
+use crate::{push_if_opt, Client, Result};
 use reqwest::Method;
 use std::fmt::Debug;
 use url::Url;
@@ -40,11 +40,8 @@ impl Query for ListDefaultObjectAccessControlsRequest {
     fn request_query(&mut self) -> Vec<(&'static str, String)> {
         let mut query = self.common_request_params.take().request_query();
 
-        query.push_if_opt("ifMetagenerationMatch", &mut self.if_metageneration_match);
-        query.push_if_opt(
-            "ifMetagenerationNotMatch",
-            &mut self.if_metageneration_not_match,
-        );
+        push_if_opt!(self, query, if_metageneration_match);
+        push_if_opt!(self, query, if_metageneration_not_match);
 
         query
     }
