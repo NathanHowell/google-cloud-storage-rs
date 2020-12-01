@@ -64,7 +64,7 @@ fn copy_object_url() {
 
     assert_eq!(
         url.as_str(),
-        "https://storage.googleapis.com/storage/v1//b/bucket1/o/foo%2Fbar%2Fbaz/copyTo/b/bucket1/o/foo/bar/baz"
+        "https://storage.googleapis.com/storage/v1/b/bucket1/o/foo%2Fbar%2Fbaz/copyTo/b/bucket1/o/foo/bar/baz"
     );
 }
 
@@ -88,7 +88,7 @@ fn rewrite_object_url() {
 
     assert_eq!(
         url.as_str(),
-        "https://storage.googleapis.com/storage/v1//b/bucket1/o/foo%2Fbar%2Fbaz/rewriteTo/b/bucket1/o/foo/bar/baz"
+        "https://storage.googleapis.com/storage/v1/b/bucket1/o/foo%2Fbar%2Fbaz/rewriteTo/b/bucket1/o/foo/bar/baz"
     );
 }
 

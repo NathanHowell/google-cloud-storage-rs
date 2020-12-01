@@ -11,7 +11,7 @@ pub(crate) trait Urls: Sized {
 
 impl Urls for Url {
     fn join_segment(mut self, segment: impl AsRef<str>) -> crate::Result<Self> {
-        {
+        if !self.path().ends_with('/') {
             let path_segments = self.path_segments_mut();
 
             match path_segments {
@@ -33,14 +33,20 @@ impl Urls for Url {
     }
 
     fn bucket(self, bucket: impl AsRef<str>) -> Result<Self> {
-        Ok(self.join_segment("b/")?.join(&encode::normal(bucket))?)
+        Ok(self
+            .join_segment("b")?
+            .join_segment(&encode::normal(bucket))?)
     }
 
     fn object(self, object: impl AsRef<str>) -> Result<Self> {
-        Ok(self.join_segment("o/")?.join(&encode::normal(object))?)
+        Ok(self
+            .join_segment("o")?
+            .join_segment(&encode::normal(object))?)
     }
 
     fn slash_object(self, object: impl AsRef<str>) -> Result<Self> {
-        Ok(self.join_segment("o/")?.join(&encode::slash(object))?)
+        Ok(self
+            .join_segment("o")?
+            .join_segment(&encode::slash(object))?)
     }
 }

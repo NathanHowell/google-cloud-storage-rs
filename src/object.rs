@@ -53,7 +53,7 @@ impl TryFrom<Url> for Object {
 
         Ok(Object {
             bucket: value.host_str().unwrap_or_default().to_string(),
-            name: value.path().to_string(),
+            name: value.path().to_string().trim_start_matches('/').to_string(),
             ..Default::default()
         })
     }
@@ -451,7 +451,7 @@ impl Request for ListObjectsRequest {
     type Response = ListObjectsResponse;
 
     fn request_path(&self, base_url: Url) -> Result<Url> {
-        base_url.bucket(&self.bucket)
+        base_url.bucket(&self.bucket)?.join_segment("o")
     }
 }
 

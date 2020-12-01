@@ -59,7 +59,7 @@ fn valid_bucket() {
 
     assert_eq!(res.metageneration, 1);
     assert_eq!(res.name, "new-bucket");
-    assert_eq!(res.project_number, 115258717310);
+    assert_eq!(res.project_number, 115258717311);
 }
 
 #[test]
